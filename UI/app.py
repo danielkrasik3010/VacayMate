@@ -7,6 +7,55 @@ from pathlib import Path
 import base64
 import io
 
+# Import deduplication function from backend
+try:
+    from nodes.VacayMate_nodes import deduplicate_items
+except ImportError:
+    # Fallback deduplication function if import fails
+    def deduplicate_items(items, min_items=5):
+        def normalize_name(name):
+            if not isinstance(name, str):
+                return ""
+            normalized = name.lower().strip()
+            if normalized.startswith("the "):
+                normalized = normalized[4:]
+            import re
+            normalized = re.sub(r'[^\w\s]', '', normalized)
+            normalized = re.sub(r'\s+', ' ', normalized).strip()
+            return normalized
+        
+        def is_valid_attraction(item):
+            """Filter out unwanted items during deduplication"""
+            if not isinstance(item, str) or len(item.strip()) < 5:
+                return False
+            
+            item_upper = item.upper().strip()
+            # Filter out HTML fragments and unwanted text
+            unwanted_patterns = [
+                'TO SPEND', 'TIME TO SPEND', 'TYPE', 'SIGHTSEEING',
+                'POPULAR ATTRACTION', 'MUST-VISIT'
+            ]
+            
+            for pattern in unwanted_patterns:
+                if pattern in item_upper:
+                    return False
+            
+            # Filter out items with HTML-like content or excessive formatting
+            if any(char in item for char in ['<', '>', '{', '}', '[', ']', '\n']):
+                return False
+                
+            return True
+        
+        seen = set()
+        unique_items = []
+        for item in items:
+            if is_valid_attraction(item):
+                normalized = normalize_name(item)
+                if normalized and normalized not in seen:
+                    seen.add(normalized)
+                    unique_items.append(item.strip())
+        return unique_items
+
 # Add the parent directory to the path to import VacayMate modules
 current_dir = Path(__file__).parent.resolve()
 parent_dir = current_dir.parent
@@ -147,7 +196,7 @@ def display_header():
     # Add hero image if available
     hero_image_path = Path("Streamlit_Images/tavern-7411977_1280.jpg")
     if hero_image_path.exists():
-        st.image(str(hero_image_path), use_column_width=True)
+        st.image(str(hero_image_path), use_container_width=True)
     
     st.markdown("""
     <div class="main-header">
@@ -165,16 +214,38 @@ def display_input_form():
     </div>
     """, unsafe_allow_html=True)
     
+    # City validation is now handled by local functions
+    
     with st.container():
         col1, col2 = st.columns(2)
         
         with col1:
             departure_city = st.text_input("🏠 Departure City", placeholder="e.g., Barcelona", help="Enter your departure city")
+            
+            # Real-time validation for departure city
+            if departure_city:
+                if not is_valid_city_local(departure_city):
+                    st.warning(f"⚠️ '{departure_city}' may not be supported. Please check spelling or try a major city name.")
+                else:
+                    st.success(f"✅ '{departure_city}' is supported!")
+            
             start_date = st.date_input("📅 Start Date", min_value=date.today(), help="Select your departure date")
             
         with col2:
             destination_city = st.text_input("🎯 Destination", placeholder="e.g., Paris", help="Enter your destination city")
+            
+            # Real-time validation for destination
+            if destination_city:
+                if not is_valid_city_local(destination_city):
+                    st.warning(f"⚠️ '{destination_city}' may not be supported. Please check spelling or try a major city name.")
+                else:
+                    st.success(f"✅ '{destination_city}' is supported!")
+            
             end_date = st.date_input("📅 End Date", min_value=date.today(), help="Select your return date")
+        
+        # Show popular cities hint
+        if not departure_city or not destination_city:
+            st.info("💡 **Popular cities:** Barcelona, Paris, London, Rome, New York, Tokyo, Sydney, Dubai, etc.")
         
         # Add sample data button
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -219,8 +290,39 @@ def run_vacaymate_system(departure_city, destination_city, start_date, end_date)
         
         return final_state
         
+    except ValueError as e:
+        # Handle city validation errors specifically
+        error_msg = str(e)
+        st.error("❌ **Invalid City Input**")
+        st.markdown(error_msg)
+        
+        # Show supported cities info
+        with st.expander("🌍 View Supported Cities", expanded=False):
+            st.markdown("""
+            **VacayMate supports major cities from around the world including:**
+            
+            **Europe:** Barcelona, Paris, London, Rome, Berlin, Amsterdam, Madrid, Vienna, Prague, etc.
+            
+            **North America:** New York, Los Angeles, Toronto, Mexico City, Miami, San Francisco, etc.
+            
+            **Asia:** Tokyo, Seoul, Bangkok, Singapore, Dubai, Mumbai, Shanghai, etc.
+            
+            **South America:** Buenos Aires, São Paulo, Rio de Janeiro, Santiago, etc.
+            
+            **Africa & Middle East:** Cairo, Dubai, Cape Town, Tel Aviv, etc.
+            
+            **Oceania:** Sydney, Melbourne, Auckland, etc.
+            
+            💡 **Tip:** Try using the full city name or check the spelling. For example:
+            - Use "New York" instead of "NYC"
+            - Use "Los Angeles" instead of "LA" 
+            - Use "São Paulo" instead of "Sao Paulo"
+            """)
+        
+        return None
+        
     except Exception as e:
-        st.error(f"Error running VacayMate system: {str(e)}")
+        st.error(f"❌ **System Error:** {str(e)}")
         return None
 
 def display_flights(research_results):
@@ -372,22 +474,41 @@ def display_attractions(research_results):
                     # Parse attractions from the content
                     import re
                     
-                    # Extract attraction names from various patterns
+                    # Extract attraction names from various patterns - improved to avoid HTML fragments
                     attraction_patterns = [
-                        r'(?:St\.|Saint)\s+[A-Z][a-zA-Z\s]+(?:Cathedral|Church)',  # Churches/Cathedrals
-                        r'[A-Z][a-zA-Z\s]+(?:Museum|Gallery)',  # Museums
-                        r'[A-Z][a-zA-Z\s]+(?:Boulevard|Street|Square)',  # Streets/Squares
-                        r'[A-Z][a-zA-Z\s]+(?:Monastery|Fortress|Palace)',  # Historic sites
-                        r'Mount\s+[A-Z][a-zA-Z]+',  # Mountains
-                        r'[A-Z][a-zA-Z\s]+(?:Park|Garden)',  # Parks
+                        r'\b(?:St\.|Saint)\s+[A-Z][a-zA-Z\s]{3,25}(?:Cathedral|Church)\b',  # Churches/Cathedrals
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Museum|Gallery)\b',  # Museums
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Boulevard|Street|Square|Platz)\b',  # Streets/Squares
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Monastery|Fortress|Palace|Castle)\b',  # Historic sites
+                        r'\bMount\s+[A-Z][a-zA-Z]{3,15}\b',  # Mountains
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Park|Garden)\b',  # Parks
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Tower|Bridge|Gate|Wall)\b',  # Landmarks
+                        r'\bBrandenburg\s+Gate\b',  # Specific Berlin attractions
+                        r'\bEast\s+Side\s+Gallery\b',  # Specific Berlin attractions
+                        r'\bBerlin\s+Wall\b',  # Specific Berlin attractions
+                        r'\bMuseum\s+Island\b',  # Specific Berlin attractions
+                        r'\bCheckpoint\s+Charlie\b',  # Specific Berlin attractions
                     ]
                     
                     found_attractions = []
                     for pattern in attraction_patterns:
                         matches = re.findall(pattern, content)
-                        for match in matches[:3]:  # Limit to 3 per pattern
-                            if match not in found_attractions and len(match) > 5:
-                                found_attractions.append({"name": match.strip(), "description": "Popular attraction in the destination"})
+                        for match in matches:  # Don't limit here, deduplicate later
+                            cleaned_match = match.strip()
+                            # Filter out HTML fragments, URLs, and other unwanted content
+                            if (len(cleaned_match) >= 5 and 
+                                not any(char in cleaned_match for char in ['<', '>', '{', '}', '[', ']']) and
+                                not cleaned_match.startswith(('http', 'www', 'com', 'TO ', 'TYPE', 'TIME', 'SPEND')) and
+                                not cleaned_match.endswith(('...', '–', '-')) and
+                                not cleaned_match.upper() in ['TO SPEND', 'TIME TO SPEND', 'TYPE', 'SIGHTSEEING'] and
+                                ' ' in cleaned_match):  # Ensure it's not just one word
+                                found_attractions.append(cleaned_match)
+                    
+                    # Deduplicate attractions
+                    unique_attraction_names = deduplicate_items(found_attractions, min_items=5)
+                    
+                    # Convert to the format expected by the UI
+                    found_attractions = [{"name": name, "description": "Popular attraction in the destination"} for name in unique_attraction_names]
                     
                     if found_attractions:
                         # Display attractions in columns
@@ -401,6 +522,11 @@ def display_attractions(research_results):
                                     <p>{attraction['description']}</p>
                                 </div>
                                 """, unsafe_allow_html=True)
+                        
+                        # Add note if fewer than 5 unique attractions found
+                        if len(found_attractions) < 5:
+                            st.info(f"ℹ️ Only {len(found_attractions)} unique attractions found for this destination.")
+                        
                         attractions_found = True
                         break
     
@@ -679,7 +805,82 @@ def create_markdown_export(final_state, departure_city, destination_city, start_
     markdown_content = vacay_mate._build_markdown_content(final_state, destination_city, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
     return markdown_content
 
+def is_valid_city_local(city_name: str) -> bool:
+    """Local city validation function to avoid import issues."""
+    if not city_name or not isinstance(city_name, str):
+        return False
+    
+    # Clean and normalize the input
+    clean_name = city_name.lower().strip()
+    
+    # Check if empty after stripping
+    if not clean_name:
+        return False
+    
+    # List of supported cities (major cities from around the world)
+    supported_cities = [
+        # Europe
+        'vienna', 'brussels', 'sofia', 'zagreb', 'prague', 'copenhagen', 'helsinki',
+        'paris', 'lyon', 'nice', 'berlin', 'munich', 'frankfurt', 'london', 'manchester',
+        'athens', 'budapest', 'dublin', 'reykjavik', 'rome', 'milan', 'vilnius',
+        'luxembourg', 'valletta', 'amsterdam', 'warsaw', 'lisbon', 'bucharest', 'moscow',
+        'saint-petersburg', 'belgrade', 'bratislava', 'ljubljana', 'madrid', 'barcelona',
+        'stockholm', 'bern', 'zurich', 'geneva', 'ankara', 'istanbul', 'kyiv',
+        
+        # North America  
+        'toronto', 'vancouver', 'montreal', 'calgary', 'ottawa', 'havana', 'san-jose',
+        'guatemala-city', 'port-au-prince', 'kingston', 'mexico-city', 'cancun',
+        'guadalajara', 'monterrey', 'panama-city', 'san-salvador', 'new-york', 'newyork',
+        'new york', 'los-angeles', 'losangeles', 'los angeles', 'chicago', 'miami',
+        'dallas', 'atlanta', 'san-francisco', 'sanfrancisco', 'san francisco', 'denver',
+        'boston', 'seattle', 'houston', 'las-vegas', 'lasvegas', 'las vegas',
+        'washington-dc', 'washingtondc', 'washington dc', 'honolulu',
+        
+        # South America
+        'buenos-aires', 'buenosaires', 'buenos aires', 'la-paz', 'lapaz', 'la paz',
+        'rio-de-janeiro', 'riodejaneiro', 'rio de janeiro', 'sao-paulo', 'saopaulo',
+        'sao paulo', 'são paulo', 'brasilia', 'santiago', 'bogota', 'quito',
+        'asuncion', 'lima', 'montevideo', 'caracas',
+        
+        # Middle East & Africa
+        'dubai', 'abu-dhabi', 'abudhabi', 'abu dhabi', 'manama', 'cairo', 'addis-ababa',
+        'addisababa', 'addis ababa', 'tel-aviv', 'telaviv', 'tel aviv', 'amman',
+        'nairobi', 'kuwait', 'beirut', 'casablanca', 'lagos', 'doha', 'riyadh',
+        'jeddah', 'dakar', 'johannesburg', 'cape-town', 'capetown', 'cape town',
+        
+        # Asia & Oceania
+        'dhaka', 'beijing', 'shanghai', 'hong-kong', 'hongkong', 'hong kong',
+        'jakarta', 'delhi', 'mumbai', 'bengaluru', 'tokyo', 'osaka', 'seoul',
+        'colombo', 'kuala-lumpur', 'kualalumpur', 'kuala lumpur', 'kathmandu',
+        'manila', 'karachi', 'lahore', 'singapore', 'taipei', 'bangkok',
+        'hanoi', 'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide',
+        'canberra', 'auckland', 'wellington', 'christchurch', 'port-moresby',
+        'portmoresby', 'port moresby', 'suva'
+    ]
+    
+    # Check exact match
+    if clean_name in supported_cities:
+        return True
+    
+    # Check partial matches
+    for city in supported_cities:
+        if clean_name in city or city in clean_name:
+            return True
+    
+    return False
+
+def get_city_validation_error_local(city_name: str, field_name: str = "City") -> str:
+    """Local city validation error function."""
+    if not city_name or not city_name.strip():
+        return f"{field_name} is required. Please enter a valid city name."
+    
+    error_msg = f"'{city_name}' is not a valid city in our database. Please check the spelling and try again."
+    error_msg += "\n\nSupported cities include major destinations in Europe, North America, South America, Asia, Africa, and Oceania."
+    
+    return error_msg
+
 def main():
+    
     # Display header
     display_header()
     
@@ -703,6 +904,50 @@ def main():
         if len(departure_city.strip()) < 2 or len(destination_city.strip()) < 2:
             st.error("Please enter valid city names!")
             return
+        
+        # Validate cities before processing
+        validation_errors = []
+        
+        departure_valid = is_valid_city_local(departure_city)
+        destination_valid = is_valid_city_local(destination_city)
+        
+        if not departure_valid:
+            error_msg = get_city_validation_error_local(departure_city, 'Departure City')
+            validation_errors.append(f"**Departure City:** {error_msg}")
+        
+        if not destination_valid:
+            error_msg = get_city_validation_error_local(destination_city, 'Destination')
+            validation_errors.append(f"**Destination:** {error_msg}")
+        
+        if validation_errors:
+            st.error("❌ **Invalid City Input**")
+            st.error("🛑 **BLOCKING PROCESSING - INVALID CITIES DETECTED**")
+            for error in validation_errors:
+                st.markdown(error)
+            
+            # Show supported cities info
+            with st.expander("🌍 View Supported Cities", expanded=True):
+                st.markdown("""
+                **VacayMate supports major cities from around the world including:**
+                
+                **Europe:** Barcelona, Paris, London, Rome, Berlin, Amsterdam, Madrid, Vienna, Prague, etc.
+                
+                **North America:** New York, Los Angeles, Toronto, Mexico City, Miami, San Francisco, etc.
+                
+                **Asia:** Tokyo, Seoul, Bangkok, Singapore, Dubai, Mumbai, Shanghai, etc.
+                
+                **South America:** Buenos Aires, São Paulo, Rio de Janeiro, Santiago, etc.
+                
+                **Africa & Middle East:** Cairo, Dubai, Cape Town, Tel Aviv, etc.
+                
+                **Oceania:** Sydney, Melbourne, Auckland, etc.
+                
+                💡 **Tip:** Try using the full city name or check the spelling. For example:
+                - Use "New York" instead of "NYC"
+                - Use "Los Angeles" instead of "LA" 
+                - Use "São Paulo" instead of "Sao Paulo"
+                """)
+            st.stop()  # Use st.stop() instead of return to ensure processing stops
         
         # Show loading spinner
         with st.spinner("🤖 AI is planning your perfect vacation... This may take 30-60 seconds."):

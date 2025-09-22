@@ -2,15 +2,9 @@ import json
 import datetime
 import sys
 import os
-from typing import TypedDict, Optional, Any, Dict
-from langchain_core.runnables import Runnable, RunnableLambda
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
-from typing_extensions import Annotated
-import operator
+from typing import  Any, Dict
+from langchain_core.runnables import  RunnableLambda
 from datetime import datetime
-from langgraph.graph.message import AnyMessage, add_messages
 import locale
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
@@ -70,6 +64,54 @@ def format_currency(value, currency, locale_name='en_US.UTF-8'):
         return "N/A"
     return locale.currency(value, symbol=True, grouping=True)
 
+# Helper function to deduplicate attractions and events
+def deduplicate_items(items, min_items=5):
+    """
+    Deduplicate attractions or events based on intelligent comparison.
+    
+    Args:
+        items: List of strings (attraction/event names)
+        min_items: Minimum number of unique items to return
+    
+    Returns:
+        List of unique items with duplicates removed
+    """
+    if not items:
+        return []
+    
+    def normalize_name(name):
+        """Normalize name for comparison"""
+        if not isinstance(name, str):
+            return ""
+        
+        # Convert to lowercase
+        normalized = name.lower().strip()
+        
+        # Remove leading "the " (with space)
+        if normalized.startswith("the "):
+            normalized = normalized[4:]
+        
+        # Remove extra whitespace and punctuation for comparison
+        import re
+        normalized = re.sub(r'[^\w\s]', '', normalized)  # Remove punctuation
+        normalized = re.sub(r'\s+', ' ', normalized).strip()  # Normalize spaces
+        
+        return normalized
+    
+    # Create a list of (original_item, normalized_item) tuples
+    normalized_items = [(item, normalize_name(item)) for item in items if item and item.strip()]
+    
+    # Track seen normalized names and keep first occurrence
+    seen = set()
+    unique_items = []
+    
+    for original, normalized in normalized_items:
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            unique_items.append(original.strip())
+    
+    return unique_items
+
 
 def run_manager(state: Dict[str, Any]) -> Dict[str, Any]:
     print("🎬 Manager Agent: Starting...")
@@ -113,8 +155,7 @@ def run_researcher(state: Dict[str, Any]) -> Dict[str, Any]:
             "inboundDepartureDateStart": inbound_departure_start,
             "inboundDepartureDateEnd": inbound_departure_end,
             "adults": 1,
-            "currency": "USD",
-            "limit": 10
+            "currency": "USD"
         })
         research_results["flights"] = flights.get('flights', [])
         print(f" - get_flight_prices returned {len(research_results['flights'])} itineraries")
@@ -124,17 +165,22 @@ def run_researcher(state: Dict[str, Any]) -> Dict[str, Any]:
 
     print("- Finding hotel prices...")
     try:
-        # Pass the string dates directly to the tool
-        hotels_list = hotel_search.invoke({
-            "query": destination,
+        # Convert string dates to date objects for the hotel tool
+        from datetime import datetime
+        check_in_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+        check_out_date_obj = datetime.strptime(return_date, "%Y-%m-%d").date()
+        
+        hotels_result = hotel_search.invoke({
             "gl": "us",
             "hl": "en",
             'currency': "USD",
-            "check_in_date": start_date,
-            "check_out_date": return_date,
+            "query": destination,
+            "check_in_date": check_in_date_obj,
+            "check_out_date": check_out_date_obj,
             "adults": 1,
             "children": 0,
-        }).get('hotels', [])
+        })
+        hotels_list = hotels_result.get('hotels', [])
 
         # Manually construct the full HotelSearchResult object to satisfy the Pydantic model
         research_results["accommodations"] = {
@@ -353,13 +399,28 @@ def run_summarizer(state: Dict[str, Any]) -> Dict[str, Any]:
     
     events = itinerary.get("local_events", [])
     if events and isinstance(events, list):
-        top_events = events[:3]  # Top 3 events
-        for i, event in enumerate(top_events, 1):
+        # Extract event titles for deduplication
+        event_titles = []
+        event_details = {}
+        
+        for event in events:
             if isinstance(event, dict):
                 title = event.get('title', 'N/A')
-                venue = event.get('venue', 'N/A')
-                date = event.get('formatted_date', 'N/A')
-                final_plan_parts.append(f"{i}. **{title}** at {venue} ({date})")
+                if title != 'N/A':
+                    event_titles.append(title)
+                    event_details[title] = event
+        
+        # Deduplicate event titles
+        unique_event_titles = deduplicate_items(event_titles, min_items=3)
+        
+        # Display top unique events
+        top_events = unique_event_titles[:5]  # Show up to 5 unique events
+        for i, title in enumerate(top_events, 1):
+            event = event_details.get(title, {})
+            venue = event.get('venue', 'N/A')
+            date = event.get('formatted_date', 'N/A')
+            final_plan_parts.append(f"{i}. **{title}** at {venue} ({date})")
+        
         final_plan_parts.append("")
     else:
         final_plan_parts.append("- Local events and activities available during your stay")
@@ -384,28 +445,54 @@ def run_summarizer(state: Dict[str, Any]) -> Dict[str, Any]:
                     # Parse attractions from the content instead of showing raw HTML
                     import re
                     
-                    # Extract attraction names from various patterns
+                    # Extract attraction names from various patterns - improved to avoid HTML fragments
                     attraction_patterns = [
-                        r'(?:St\.|Saint)\s+[A-Z][a-zA-Z\s]+(?:Cathedral|Church)',  # Churches/Cathedrals
-                        r'[A-Z][a-zA-Z\s]+(?:Museum|Gallery)',  # Museums
-                        r'[A-Z][a-zA-Z\s]+(?:Boulevard|Street|Square)',  # Streets/Squares
-                        r'[A-Z][a-zA-Z\s]+(?:Monastery|Fortress|Palace)',  # Historic sites
-                        r'Mount\s+[A-Z][a-zA-Z]+',  # Mountains
-                        r'[A-Z][a-zA-Z\s]+(?:Park|Garden)',  # Parks
+                        r'\b(?:St\.|Saint)\s+[A-Z][a-zA-Z\s]{3,25}(?:Cathedral|Church)\b',  # Churches/Cathedrals
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Museum|Gallery)\b',  # Museums
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Boulevard|Street|Square|Platz)\b',  # Streets/Squares
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Monastery|Fortress|Palace|Castle)\b',  # Historic sites
+                        r'\bMount\s+[A-Z][a-zA-Z]{3,15}\b',  # Mountains
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Park|Garden)\b',  # Parks
+                        r'\b[A-Z][a-zA-Z\s]{3,25}(?:Tower|Bridge|Gate|Wall)\b',  # Landmarks
+                        r'\bBrandenburg\s+Gate\b',  # Specific Berlin attractions
+                        r'\bEast\s+Side\s+Gallery\b',  # Specific Berlin attractions
+                        r'\bBerlin\s+Wall\b',  # Specific Berlin attractions
+                        r'\bMuseum\s+Island\b',  # Specific Berlin attractions
+                        r'\bCheckpoint\s+Charlie\b',  # Specific Berlin attractions
                     ]
                     
                     found_attractions = []
                     for pattern in attraction_patterns:
                         matches = re.findall(pattern, content)
-                        for match in matches[:3]:  # Limit to 3 per pattern
-                            if match not in found_attractions and len(match) > 5:
-                                found_attractions.append(match.strip())
+                        for match in matches:  # Don't limit here, deduplicate later
+                            cleaned_match = match.strip()
+                            # Filter out HTML fragments, URLs, and other unwanted content
+                            if (len(cleaned_match) >= 5 and 
+                                not any(char in cleaned_match for char in ['<', '>', '{', '}', '[', ']']) and
+                                not cleaned_match.startswith(('http', 'www', 'com', 'TO ', 'TYPE', 'TIME', 'SPEND')) and
+                                not cleaned_match.endswith(('...', '–', '-')) and
+                                not cleaned_match.upper() in ['TO SPEND', 'TIME TO SPEND', 'TYPE', 'SIGHTSEEING'] and
+                                ' ' in cleaned_match):  # Ensure it's not just one word
+                                found_attractions.append(cleaned_match)
                     
-                    if found_attractions:
+                    # Deduplicate attractions
+                    unique_attractions = deduplicate_items(found_attractions, min_items=5)
+                    
+                    if unique_attractions:
                         final_plan_parts.append(f"**Top attractions in {destination}:**")
                         final_plan_parts.append("")
-                        for i, attraction in enumerate(found_attractions[:8], 1):  # Top 8 attractions
+                        
+                        # Display at least 5 unique attractions or note if fewer available
+                        attractions_to_show = unique_attractions[:8]  # Show up to 8
+                        
+                        for i, attraction in enumerate(attractions_to_show, 1):
                             final_plan_parts.append(f"{i}. {attraction}")
+                        
+                        # Add note if fewer than 5 unique attractions found
+                        if len(unique_attractions) < 5:
+                            final_plan_parts.append("")
+                            final_plan_parts.append(f"*Only {len(unique_attractions)} unique attractions found for this destination.*")
+                        
                         final_plan_parts.append("")
                         attractions_found = True
                         break
@@ -440,8 +527,20 @@ def run_summarizer(state: Dict[str, Any]) -> Dict[str, Any]:
                 f"Scenic viewpoints and parks"
             ]
         
-        for attraction in attractions:
-            final_plan_parts.append(f"- {attraction}")
+        # Apply deduplication to fallback attractions as well
+        unique_attractions = deduplicate_items(attractions, min_items=5)
+        
+        final_plan_parts.append(f"**Top attractions in {destination}:**")
+        final_plan_parts.append("")
+        
+        attractions_to_show = unique_attractions[:8]  # Show up to 8
+        for i, attraction in enumerate(attractions_to_show, 1):
+            final_plan_parts.append(f"{i}. {attraction}")
+        
+        # Add note if fewer than 5 unique attractions found
+        if len(unique_attractions) < 5:
+            final_plan_parts.append("")
+            final_plan_parts.append(f"*Only {len(unique_attractions)} unique attractions found for this destination.*")
     
     final_plan_parts.append("")
     

@@ -1,23 +1,20 @@
 
 import os
-import json
 import datetime
 from typing import Optional
-from urllib.parse import urlparse
 try:
     from serpapi import GoogleSearch
 except ImportError:
     GoogleSearch = None
-from pyowm import OWM
 from langchain.agents import tool
 
 from dotenv import load_dotenv
 load_dotenv()
 
-# The following API keys are placeholders and should be loaded from your .env file
-# as shown in the original code. For this example, they are hardcoded
-# to make the code self-contained and runnable.
-SERPAPI_API_KEY = '297fdf48a26d5137d7068c6a7f7341cf0db14c16212b9a3eade05f4768521453'
+# API keys are loaded from environment variables via .env file
+SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY')
+if not SERPAPI_API_KEY:
+    raise ValueError("SERPAPI_API_KEY environment variable not set.")
 
 
 # ========================================================================

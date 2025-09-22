@@ -27,14 +27,32 @@ def simplify_hotels(hotels: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     simplified = []
 
     for h in hotels:
+        # Skip None or invalid entries
+        if not h or not isinstance(h, dict):
+            simplified.append({
+                "name": "Invalid Hotel Data",
+                "price": {"per_night": "N/A", "per_night_value": None, "total": "N/A", "total_value": None},
+                "address": {"formatted": "Address not available"},
+                "rating": None,
+                "hotel_class": None,
+                "amenities": "N/A",
+                "booking_link": "",
+                "summary": "Invalid hotel data entry"
+            })
+            continue
+            
         # Helper to parse numeric price
         def parse_price(price_str):
             if price_str:
                 return float(price_str.replace('$','').replace(',',''))
             return None
 
-        price_per_night = h.get("rate_per_night", {}).get("lowest")
-        total_price = h.get("total_rate", {}).get("lowest")
+        # Safely get price data
+        rate_per_night = h.get("rate_per_night", {})
+        total_rate = h.get("total_rate", {})
+        
+        price_per_night = rate_per_night.get("lowest") if isinstance(rate_per_night, dict) else None
+        total_price = total_rate.get("lowest") if isinstance(total_rate, dict) else None
 
         price_per_night_val = parse_price(price_per_night)
         total_price_val = parse_price(total_price)

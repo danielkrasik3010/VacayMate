@@ -1,18 +1,15 @@
 import os
 import json
 import datetime
-from typing import Optional
-from urllib.parse import urlparse
-from serpapi import GoogleSearch
 from pyowm import OWM
 from langchain.agents import tool
 from dotenv import load_dotenv
 load_dotenv()
 
-# The following API keys are placeholders and should be loaded from your .env file
-# as shown in the original code. For this example, they are hardcoded
-# to make the code self-contained and runnable.
-OWM_API_KEY = 'c9e4f702cc39e83c223bb81911f03aa8'
+# API keys are loaded from environment variables via .env file
+OWM_API_KEY = os.getenv('OWM_API_KEY')
+if not OWM_API_KEY:
+    raise ValueError("OWM_API_KEY environment variable not set.")
 
 # ========================================================================
 #   WEATHER FORECAST TOOL (with human-readable summary)

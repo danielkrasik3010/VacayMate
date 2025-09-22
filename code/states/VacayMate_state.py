@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.graph.message import AnyMessage, add_messages
 from typing_extensions import Annotated
-import operator
 
 # ---------------- FLIGHTS ---------------- #
 class FlightLeg(BaseModel):
@@ -176,12 +175,12 @@ def initialize_vacation_state(
     """Initialize the VacayMate state with default values."""
     # Create a dict that matches the TypedDict structure
     return {
-        "user_request": user_request,
-        "current_location": current_location,
-        "destination": destination,
+        "user_request": user_request or "",
+        "current_location": current_location or "",
+        "destination": destination or "",
         "travel_dates": f"{start_date} to {return_date}" if start_date and return_date else "",
-        "start_date": start_date,
-        "return_date": return_date,
+        "start_date": start_date or "",
+        "return_date": return_date or "",
         "manager_messages": [],
         "researcher_messages": [],
         "calculator_messages": [],

@@ -1,10 +1,7 @@
 import sys
 import os
-import logging
-from typing import TypedDict, Optional, Dict, Any
-from pydantic import BaseModel
+from typing import  Dict, Any
 from langchain_core.runnables import Runnable, RunnableLambda
-from langgraph.graph import StateGraph, START, END
 
 # Ensure current directory and parent are discoverable when running directly
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +14,8 @@ if parent_dir not in sys.path:
 # Import the main state object and components
 from states.VacayMate_state import VacationPlannerState, initialize_vacation_state
 from graphs.VacayMate_graph import build_vacation_graph
+from tools.city_mapping import is_valid_city, get_city_validation_error
+from utils import load_config
 from consts import (
     MANAGER,
     RESEARCHER,
@@ -26,115 +25,23 @@ from consts import (
     MERGE_RESULTS,
 )
 
-# Configuration dictionary
-config = {
-    'vacaymate_system': {
-        'max_retries': 3,
-        'timeout_seconds': 300,
-        'max_search_queries': 5,
-        'max_hotels': 10,
-        'max_events': 10,
-        'agents': {
-            'manager': {
-                'llm': 'gpt-4o-mini',
-                'prompt_config': {
-                    'role': 'Vacation Manager & Orchestrator',
-                    'instruction': """You are the central manager of the VacayMate system.
-Your job is to:
-1. Receive user input (current location, vacation destination, date range).
-2. Validate the input and extract structured details.
-3. Route tasks to the appropriate agents (Researcher, Calculator, Planner, Summarizer).
-4. Collect results and ensure workflow completes in the correct sequence.
-Delegate tasks in a strict, sequential order:
-1. Researcher: First, send all vacation details to the Researcher agent to gather raw data on flights, hotels, and activities.
-2. Calculator: Once the Researcher completes its task, send the gathered cost data (flights, hotels) to the Calculator agent.
-3. Planner: Simultaneously, send the destination, date range, and activities data to the Planner agent.
-4. Summarizer: After both the Calculator and Planner have finished, send their respective outputs (the quotation and the itinerary) to the Summarizer agent for final presentation.
-Never perform calculations or planning yourself — always delegate.""",
-                    'output_constraints': [
-                        'Return structured, validated input with keys: current_location, destination, date_range',
-                        'Only delegate tasks, do not attempt to complete them'
-                    ],
-                    'goal': 'Orchestrate the full vacation planning workflow'
-                }
-            },
-            'researcher': {
-                'llm': 'gpt-4o-mini',
-                'tools': [
-                    'destination_info_tool',
-                    'Flight_prices_tool',
-                    'Hotel_prices_tool'
-                ],
-                'prompt_config': {
-                    'role': 'Data Researcher for vacation planning',
-                    'instruction': """Collect raw data for the given destination and date range using the available tools:
-- Use the `Flight_prices_tool` to find flight options and prices.
-- Use the `Hotel_prices_tool` to find hotel availability and pricing.
-- Use the `destination_info_tool` to find local activities, attractions, and restaurants.
-Return results in structured JSON format.""",
-                    'output_constraints': [
-                        'Organize data into flights, hotels, activities, and events',
-                        'Ensure at least 3 options per category (if available)'
-                    ],
-                    'goal': 'Gather all raw data necessary for planning and cost estimation'
-                }
-            },
-            'calculator': {
-                'llm': 'gpt-4o-mini',
-                'tools': [
-                    'Make_quotation_tool'
-                ],
-                'prompt_config': {
-                    'role': 'Financial Calculator',
-                    'instruction': """Use the `Make_quotation_tool` to calculate the total estimated trip cost. This tool requires specific inputs: a list of hotel prices, a list of flight prices, the start and end dates of the trip, and the destination.""",
-                    'output_constraints': [
-                        'Provide total, per-person, and daily costs in structured format',
-                        'Ensure math accuracy using the Make_quotation_tool'
-                    ],
-                    'goal': 'Generate a precise vacation quotation'
-                }
-            },
-            'planner': {
-                'llm': 'gpt-4o-mini',
-                'tools': [
-                    'Weather_Forecast_tool',
-                    'Event_finder_tool'
-                ],
-                'prompt_config': {
-                    'role': 'Itinerary Planner',
-                    'instruction': """Design a day-by-day itinerary for the vacation using the activity and event data provided.
-Consider:
-- Location proximity (avoid unnecessary travel)
-- Weather forecasts (use the `Weather_Forecast_tool`)
-- Logical grouping of activities
-- Variety (mix of cultural, leisure, dining, and events)
-- Also, use the `Event_finder_tool` to find local events to include in the itinerary.""",
-                    'output_constraints': [
-                        'Provide a structured day-by-day itinerary',
-                        'Each day must include at least one main activity and optional extras'
-                    ],
-                    'goal': 'Produce a realistic, enjoyable day-by-day vacation plan'
-                }
-            },
-            'summarizer': {
-                'llm': 'gpt-4o-mini',
-                'prompt_config': {
-                    'role': 'Vacation Summarizer & Presenter',
-                    'instruction': """Combine the quotation (from Calculator) and itinerary (from Planner) into one polished output.
-The output must include:
-- A cost summary section
-- A detailed daily itinerary section
-- A friendly conclusion""",
-                    'output_constraints': [
-                        'Output should be user-friendly and well-formatted (Markdown or rich text)',
-                        'Do not lose details from the quotation or itinerary'
-                    ],
-                    'goal': 'Deliver the final vacation plan in a clear and engaging way'
-                }
+# Load configuration from config.yaml
+try:
+    config = load_config()
+    print("✅ Configuration loaded from config.yaml")
+except Exception as e:
+    print(f"⚠️ Error loading config.yaml: {e}")
+    # Fallback to minimal config
+    config = {
+        'vacaymate_system': {
+            'max_retries': 3,
+            'timeout_seconds': 300,
+            'model_config': {
+                'temperature': 0.3,
+                'max_tokens': 4000
             }
         }
     }
-}
 
 # ------------------- Vacation Planner Class -------------------
 
@@ -143,12 +50,23 @@ class VacayMate:
     LangGraph-based vacation planning system.
     """
 
-    def __init__(self, llm_model: str = "gpt-4o-mini") -> None:
-        # Create a simple config for the graph builder
+    def __init__(self, llm_model: str = None) -> None:
+        # Use config from config.yaml
+        system_config = config.get('vacaymate_system', {})
+        model_config = system_config.get('model_config', {})
+        
+        # Use config values or fallback to defaults
+        if llm_model is None:
+            llm_model = system_config.get('agents', {}).get('manager', {}).get('llm', 'gpt-4o-mini')
+        
+        # Create a config for the graph builder using config.yaml values
         graph_config = {
             "llm": llm_model,
             "tools": [],
-            "prompt_config": {}
+            "prompt_config": {},
+            "temperature": model_config.get('temperature', 0.3),
+            "max_tokens": model_config.get('max_tokens', 4000),
+            "agents_config": system_config.get('agents', {}),
         }
         self.graph = build_vacation_graph(graph_config)
     
@@ -173,10 +91,45 @@ class VacayMate:
             "planner_results": {}
         }
 
+    def validate_cities(self, current_location: str, destination: str) -> Dict[str, str]:
+        """
+        Validate departure city and destination.
+        
+        Args:
+            current_location: The departure city
+            destination: The destination city
+            
+        Returns:
+            Dict containing validation errors, empty if all valid
+        """
+        errors = {}
+        
+        # Validate departure city
+        if not is_valid_city(current_location):
+            errors['departure_city'] = get_city_validation_error(current_location, "Departure City")
+        
+        # Validate destination
+        if not is_valid_city(destination):
+            errors['destination'] = get_city_validation_error(destination, "Destination")
+            
+        return errors
+    
     def run(self, user_request: str, current_location: str, destination: str, start_date: str, return_date: str):
         """
         Runs the VacayMate workflow with the given user input.
+        
+        Raises:
+            ValueError: If cities are not valid
         """
+        # Validate cities before processing
+        validation_errors = self.validate_cities(current_location, destination)
+        if validation_errors:
+            error_messages = []
+            for field, error in validation_errors.items():
+                error_messages.append(f"**{field.replace('_', ' ').title()} Error:**\n{error}")
+            
+            raise ValueError("\n\n".join(error_messages))
+        
         initial_state = initialize_vacation_state(
             user_request=user_request,
             current_location=current_location,
@@ -272,7 +225,8 @@ class VacayMate:
                 departure = flight.get("departureTime", "N/A")
                 arrival = flight.get("arrivalTime", "N/A")
                 duration = flight.get("durationOutbound", "N/A")
-                price = f"${flight.get('priceUSD', 0):.2f}"
+                price_usd = flight.get('priceUSD', 0)
+                price = f"${price_usd:.2f}" if price_usd is not None else "N/A"
                 
                 lines.append(f"| {airline} | {flight_num} | {from_airport} | {to_airport} | {departure} | {arrival} | {duration} | {price} |")
         else:
@@ -544,10 +498,10 @@ if __name__ == "__main__":
 
     vacay_mate = VacayMate(llm_model="gpt-4o-mini")
 
-    current_location = "Barcelona"
-    destination = "Paris"
-    start_date = "2025-09-15"
-    return_date = "2025-09-20"
+    current_location = "Paris"
+    destination = "Berlin"
+    start_date = "2025-10-15"
+    return_date = "2025-10-22"
 
     print(f"\nUser Request Details:")
     print(f"   Current Location: {current_location}")

@@ -4,7 +4,9 @@ import os
 from dotenv import load_dotenv
 #from code.tools.city_mapping import CITY_CODES
 load_dotenv()
-FLIGHTS_RAPID_API_KEY = "accc99e318msh4c97e17ee7eaf7ep1b9127jsn901e342a67df"
+FLIGHTS_RAPID_API_KEY = os.getenv("FLIGHTS_RAPID_API_KEY")
+if not FLIGHTS_RAPID_API_KEY:
+    raise ValueError("FLIGHTS_RAPID_API_KEY environment variable not set.")
 # City mapping for flight API requests
 # This ensures correct city format for the Kiwi API
 

@@ -4,6 +4,12 @@ vacaymate_system:
   max_search_queries: 5
   max_hotels: 10
   max_events: 10
+  
+  # Model configuration
+  model_config:
+    temperature: 0.3
+    max_tokens: 4000
+    top_p: 1.0
 
   agents:
     manager:
@@ -31,16 +37,16 @@ vacaymate_system:
     researcher:
       llm: gpt-4o-mini
       tools:
-        - destination_info_tool
-        - Flight_prices_tool
-        - Hotel_prices_tool
+        - get_destination_info
+        - get_flight_prices
+        - hotel_search
       prompt_config:
         role: Data Researcher for vacation planning
         instruction: |
           Collect raw data for the given destination and date range using the available tools:
-          - Use the `Flight_prices_tool` to find flight options and prices.
-          - Use the `Hotel_prices_tool` to find hotel availability and pricing.
-          - Use the `destination_info_tool` to find local activities, attractions, and restaurants.
+          - Use the `get_flight_prices` tool to find flight options and prices.
+          - Use the `hotel_search` tool to find hotel availability and pricing.
+          - Use the `get_destination_info` tool to find local activities, attractions, and restaurants.
           Return results in structured JSON format.
         output_constraints:
           - Organize data into flights, hotels, activities, and events
@@ -50,31 +56,31 @@ vacaymate_system:
     calculator:
       llm: gpt-4o-mini
       tools:
-        - Make_quotation_tool
+        - make_quotation
       prompt_config:
         role: Financial Calculator
         instruction: |
-          Use the `Make_quotation_tool` to calculate the total estimated trip cost. This tool requires specific inputs: a list of hotel prices, a list of flight prices, the start and end dates of the trip, and the destination.
+          Use the `make_quotation` tool to calculate the total estimated trip cost. This tool requires specific inputs: a list of hotel prices, a list of flight prices, the start and end dates of the trip, and the destination.
         output_constraints:
           - Provide total, per-person, and daily costs in structured format
-          - Ensure math accuracy using the Make_quotation_tool
+          - Ensure math accuracy using the make_quotation tool
         goal: Generate a precise vacation quotation
 
     planner:
       llm: gpt-4o-mini
       tools:
-        - Weather_Forecast_tool
-        - Event_finder_tool
+        - get_weather_forecast
+        - search_events
       prompt_config:
         role: Itinerary Planner
         instruction: |
           Design a day-by-day itinerary for the vacation using the activity and event data provided.
           Consider:
           - Location proximity (avoid unnecessary travel)
-          - Weather forecasts (use the `Weather_Forecast_tool`)
+          - Weather forecasts (use the `get_weather_forecast` tool)
           - Logical grouping of activities
           - Variety (mix of cultural, leisure, dining, and events)
-          - Also, use the `Event_finder_tool` to find local events to include in the itinerary.
+          - Also, use the `search_events` tool to find local events to include in the itinerary.
         output_constraints:
           - Provide a structured day-by-day itinerary
           - Each day must include at least one main activity and optional extras

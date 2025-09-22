@@ -200,6 +200,76 @@ def get_city_code(city_name: str) -> str:
     formatted_name = clean_name.replace(' ', '-').replace('_', '-')
     return f"City:{formatted_name}_xx"  # xx as unknown country code
 
+def is_valid_city(city_name: str) -> bool:
+    """
+    Check if a city name is valid (exists in our mapping).
+    
+    Args:
+        city_name: The city name to validate
+        
+    Returns:
+        bool: True if the city is valid, False otherwise
+    """
+    if not city_name or not isinstance(city_name, str):
+        return False
+    
+    # Clean and normalize the input
+    clean_name = city_name.lower().strip()
+    
+    # Check if empty after stripping
+    if not clean_name:
+        return False
+    
+    # Check exact match
+    if clean_name in CITY_MAPPING:
+        return True
+    
+    # Check partial matches
+    for key in CITY_MAPPING.keys():
+        if clean_name in key or key in clean_name:
+            return True
+    
+    return False
+
+def get_city_validation_error(city_name: str, field_name: str = "City") -> str:
+    """
+    Get a validation error message for an invalid city.
+    
+    Args:
+        city_name: The invalid city name
+        field_name: The field name for the error message
+        
+    Returns:
+        str: Error message with suggestions
+    """
+    if not city_name or not city_name.strip():
+        return f"{field_name} is required. Please enter a valid city name."
+    
+    # Find close matches
+    clean_name = city_name.lower().strip()
+    suggestions = []
+    
+    # Look for cities that start with the same letters
+    for key in CITY_MAPPING.keys():
+        if key.startswith(clean_name[:3]) and len(clean_name) >= 3:
+            # Convert back to display format
+            display_name = key.replace('-', ' ').title()
+            if display_name not in suggestions:
+                suggestions.append(display_name)
+        if len(suggestions) >= 3:  # Limit suggestions
+            break
+    
+    error_msg = f"'{city_name}' is not a valid city in our database."
+    
+    if suggestions:
+        error_msg += f" Did you mean: {', '.join(suggestions)}?"
+    else:
+        error_msg += " Please check the spelling and try again."
+    
+    error_msg += "\n\nSupported cities include major destinations in Europe, North America, South America, Asia, Africa, and Oceania."
+    
+    return error_msg
+
 def validate_city_code(code: str) -> bool:
     """Check if a city code is in the valid format."""
     return code.startswith('City:') and '_' in code
