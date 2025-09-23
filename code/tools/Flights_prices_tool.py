@@ -1,12 +1,17 @@
 from langchain.agents import tool
 import requests
 import os
-from dotenv import load_dotenv
-#from code.tools.city_mapping import CITY_CODES
-load_dotenv()
-FLIGHTS_RAPID_API_KEY = os.getenv("FLIGHTS_RAPID_API_KEY")
-if not FLIGHTS_RAPID_API_KEY:
-    raise ValueError("FLIGHTS_RAPID_API_KEY environment variable not set.")
+import sys
+from pathlib import Path
+
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
+
+from secrets_manager import get_secret
+
+FLIGHTS_RAPID_API_KEY = get_secret("FLIGHTS_RAPID_API_KEY", "flights")
 # City mapping for flight API requests
 # This ensures correct city format for the Kiwi API
 

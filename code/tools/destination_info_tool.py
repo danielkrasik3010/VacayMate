@@ -1,16 +1,19 @@
 import os
 import json
+import sys
 from typing import List, Dict, Any
 from tavily import TavilyClient
 from langchain.agents import tool
-from dotenv import load_dotenv
+from pathlib import Path
 
-# Load environment variables from .env file
-load_dotenv()
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
 
-TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
-if not TAVILY_API_KEY:
-    raise ValueError("TAVILY_API_KEY environment variable not set.")
+from secrets_manager import get_secret
+
+TAVILY_API_KEY = get_secret('TAVILY_API_KEY', 'tavily')
 
 # Load the Tavily API key from your environment variables
 

@@ -1,18 +1,23 @@
 import os
 import json
+import sys
 from datetime import date
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from serpapi import GoogleSearch
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 
-from dotenv import load_dotenv
-load_dotenv()
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
+
+from secrets_manager import get_secret
+
 # --- API Key setup ---
-
-if not os.getenv("SERPAPI_API_KEY"):
-    raise ValueError("SERPAPI_API_KEY environment variable not set.")
+SERPAPI_API_KEY = get_secret("SERPAPI_API_KEY", "serpapi")
 
 # --- Define the tool's input schema ---
 class HotelSearchInput(BaseModel):
@@ -173,7 +178,7 @@ def hotel_search(query: str, check_in_date: date, check_out_date: date, adults: 
         "currency": "USD",
         "gl": "us",
         "hl": "en",
-        "api_key": os.getenv("SERPAPI_API_KEY"),
+        "api_key": SERPAPI_API_KEY,
     }
 
     try:

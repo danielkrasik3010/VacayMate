@@ -1,19 +1,21 @@
 import os
 import datetime
 import statistics
+import sys
 from typing import List, Dict, Any
 from groq import Groq
-from dotenv import load_dotenv
+from pathlib import Path
+
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
+
+from secrets_manager import get_secret
 
 # Load environment variables
-load_dotenv()
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-GROQ_MODEL = os.getenv("GROQ_MODEL")
-
-if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY environment variable not set.")
-if not GROQ_MODEL:
-    raise ValueError("GROQ_MODEL environment variable not set.")
+GROQ_API_KEY = get_secret("GROQ_API_KEY", "groq")
+GROQ_MODEL = get_secret("GROQ_MODEL", "groq")
 
 # Initialize Groq client
 groq_client = Groq(api_key=GROQ_API_KEY)

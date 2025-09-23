@@ -1,20 +1,24 @@
 
 import os
 import datetime
+import sys
 from typing import Optional
 try:
     from serpapi import GoogleSearch
 except ImportError:
     GoogleSearch = None
 from langchain.agents import tool
+from pathlib import Path
 
-from dotenv import load_dotenv
-load_dotenv()
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
+
+from secrets_manager import get_secret
 
 # API keys are loaded from environment variables via .env file
-SERPAPI_API_KEY = os.getenv('SERPAPI_API_KEY')
-if not SERPAPI_API_KEY:
-    raise ValueError("SERPAPI_API_KEY environment variable not set.")
+SERPAPI_API_KEY = get_secret('SERPAPI_API_KEY', 'serpapi')
 
 
 # ========================================================================

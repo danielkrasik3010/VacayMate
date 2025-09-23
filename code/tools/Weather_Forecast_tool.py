@@ -1,15 +1,20 @@
 import os
 import json
 import datetime
+import sys
 from pyowm import OWM
 from langchain.agents import tool
-from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
+
+# Add utils to path for secrets manager
+current_dir = Path(__file__).parent
+utils_dir = current_dir.parent / "utils"
+sys.path.insert(0, str(utils_dir))
+
+from secrets_manager import get_secret
 
 # API keys are loaded from environment variables via .env file
-OWM_API_KEY = os.getenv('OWM_API_KEY')
-if not OWM_API_KEY:
-    raise ValueError("OWM_API_KEY environment variable not set.")
+OWM_API_KEY = get_secret('OWM_API_KEY', 'owm')
 
 # ========================================================================
 #   WEATHER FORECAST TOOL (with human-readable summary)
