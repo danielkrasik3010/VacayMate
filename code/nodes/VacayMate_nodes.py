@@ -6,7 +6,29 @@ from typing import  Any, Dict
 from langchain_core.runnables import  RunnableLambda
 from datetime import datetime
 import locale
-locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+
+# Set locale with fallback for deployment environments
+try:
+    locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+except locale.Error:
+    try:
+        # Try alternative locale formats
+        locale.setlocale(locale.LC_ALL, 'en_US')
+    except locale.Error:
+        try:
+            # Try C.UTF-8 which is commonly available
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except locale.Error:
+            try:
+                # Try POSIX locale
+                locale.setlocale(locale.LC_ALL, 'POSIX')
+            except locale.Error:
+                # Fall back to default system locale
+                try:
+                    locale.setlocale(locale.LC_ALL, '')
+                except locale.Error:
+                    # If all else fails, just continue without setting locale
+                    print("Warning: Could not set locale, using system default")
 
 # --- Setup logging to both console and file ---
 log_dir = os.path.join(
@@ -62,7 +84,17 @@ from consts import (
 def format_currency(value, currency, locale_name='en_US.UTF-8'):
     if not isinstance(value, (int, float)):
         return "N/A"
-    return locale.currency(value, symbol=True, grouping=True)
+    
+    try:
+        return locale.currency(value, symbol=True, grouping=True)
+    except (locale.Error, ValueError):
+        # Fallback to simple formatting if locale currency formatting fails
+        if currency.upper() == 'USD':
+            return f"${value:,.2f}"
+        elif currency.upper() == 'EUR':
+            return f"€{value:,.2f}"
+        else:
+            return f"{currency} {value:,.2f}"
 
 # Helper function to deduplicate attractions and events
 def deduplicate_items(items, min_items=5):
