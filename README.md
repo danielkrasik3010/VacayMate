@@ -144,10 +144,6 @@ VacayMate uses a sophisticated multi-agent architecture where specialized agents
    streamlit run UI/app.py
    ```
    
-   Or use the convenient launcher:
-   ```bash
-   python start_streamlit.py
-   ```
 
 ## 📁 Project Structure
 
