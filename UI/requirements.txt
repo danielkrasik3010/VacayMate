@@ -22,8 +22,11 @@ mcp~=1.9.4
 langchain_mcp_adapters
 pygithub~=2.6.1
 langchain_tavily
+tavily-python
 selenium~=4.34.0
 unstructured~=0.18.1
+serpapi
 google-search-results>=2.4.2
 pyowm
 PyPDF2
+requests

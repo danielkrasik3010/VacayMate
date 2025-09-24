@@ -20,11 +20,14 @@ mcp~=1.9.4
 langchain_mcp_adapters
 pygithub~=2.6.1
 langchain_tavily
+tavily-python
 selenium~=4.34.0
 unstructured~=0.18.1
 serpapi
+google-search-results
 pyowm
 PyPDF2
+requests
 
 # Testing dependencies
 pytest>=8.0.0
