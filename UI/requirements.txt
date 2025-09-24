@@ -24,6 +24,6 @@ pygithub~=2.6.1
 langchain_tavily
 selenium~=4.34.0
 unstructured~=0.18.1
-serpapi
+google-search-results>=2.4.2
 pyowm
 PyPDF2

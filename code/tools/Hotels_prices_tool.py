@@ -5,7 +5,22 @@ from datetime import date
 from typing import Optional
 from pydantic import BaseModel, Field
 from langchain_core.tools import tool
-from serpapi import GoogleSearch
+try:
+    from serpapi import GoogleSearch
+except ImportError:
+    try:
+        from serpapi.google_search import GoogleSearch
+    except ImportError:
+        try:
+            from serpapi.serp_api_client import GoogleSearch
+        except ImportError:
+            # Fallback - define a dummy class to prevent import errors
+            class GoogleSearch:
+                def __init__(self, *args, **kwargs):
+                    pass
+                def get_dict(self):
+                    return {"error": "SerpAPI not available"}
+            print("Warning: SerpAPI GoogleSearch not available, using fallback")
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 

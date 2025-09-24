@@ -15,7 +15,14 @@ if parent_dir not in sys.path:
 from states.VacayMate_state import VacationPlannerState, initialize_vacation_state
 from graphs.VacayMate_graph import build_vacation_graph
 from tools.city_mapping import is_valid_city, get_city_validation_error
-from utils import load_config
+import importlib.util
+import os
+# Import load_config from utils.py file (not utils directory)
+utils_file_path = os.path.join(os.path.dirname(__file__), 'utils.py')
+spec = importlib.util.spec_from_file_location("utils_file", utils_file_path)
+utils_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(utils_module)
+load_config = utils_module.load_config
 from consts import (
     MANAGER,
     RESEARCHER,
