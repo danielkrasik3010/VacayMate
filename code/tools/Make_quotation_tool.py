@@ -1,5 +1,5 @@
 import os
-import datetime
+from datetime import datetime, timedelta
 import statistics
 import sys
 from typing import List, Dict, Any
@@ -77,8 +77,8 @@ def make_quotation(
         return {"error": f"Invalid price format: {str(e)}"}
 
     # 1. Number of days
-    d1 = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    d2 = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    d1 = datetime.strptime(start_date, "%Y-%m-%d")
+    d2 = datetime.strptime(end_date, "%Y-%m-%d")
     num_days = (d2 - d1).days
 
     # 2. Avg hotel per night * days

@@ -1,6 +1,6 @@
 import os
 import json
-import datetime
+from datetime import datetime, timedelta, date
 import sys
 from pyowm import OWM
 from langchain.agents import tool
@@ -83,8 +83,8 @@ def get_weather_forecast(location: str, days: int = 5, units: str = "metric") ->
 # ========================================================================
 
 if __name__ == "__main__":
-    today = datetime.date.today()
-    next_week = today + datetime.timedelta(days=7)
+    today = date.today()
+    next_week = today + timedelta(days=7)
     print("Testing Weather Forecast Tool...")
     weather_result = get_weather_forecast.invoke({
         "location": "London",

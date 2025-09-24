@@ -1,6 +1,6 @@
 
 import os
-import datetime
+from datetime import datetime, timedelta, date
 import sys
 from typing import Optional
 try:
@@ -125,8 +125,8 @@ def search_events(
 # ========================================================================
 
 if __name__ == "__main__":
-    today = datetime.date.today()
-    next_week = today + datetime.timedelta(days=7)
+    today = date.today()
+    next_week = today + timedelta(days=7)
     print("Testing Local Event Finder...")
     event_result = search_events.invoke({
         "location": "New York",
