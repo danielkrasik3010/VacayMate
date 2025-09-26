@@ -39,6 +39,8 @@ from tools.destination_info_tool import get_destination_info
 from tools.Event_finder_tool import search_events
 from tools.Make_quotation_tool import make_quotation
 from tools.city_mapping import get_city_code
+from tools.Flights_prices_tool import get_flight_prices
+from tools.Hotels_prices_tool import hotel_search
 
 # Import constants
 from consts import (
@@ -54,10 +56,86 @@ from consts import (
 from llm import get_llm
 
 # ===============================
+# LIGHTWEIGHT STATE VALIDATION FUNCTIONS
+# ===============================
+
+def _validate_manager_inputs(state: Dict[str, Any]) -> None:
+    """Validate inputs required by the manager node."""
+    required_fields = ["user_request", "current_location", "destination", "start_date", "return_date"]
+    missing_fields = []
+    
+    for field in required_fields:
+        value = state.get(field, "")
+        if not value or value.strip() == "" or value == "[MISSING]":
+            missing_fields.append(field)
+    
+    if missing_fields:
+        raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+
+def _validate_researcher_inputs(state: Dict[str, Any]) -> None:
+    """Validate inputs required by the researcher node."""
+    required_fields = ["current_location", "destination", "start_date", "return_date"]
+    for field in required_fields:
+        value = state.get(field, "")
+        if not value or value.strip() == "":
+            raise ValueError(f"Missing required field for research: {field}")
+
+def _validate_calculator_inputs(state: Dict[str, Any]) -> None:
+    """Validate inputs required by the calculator node."""
+    research_results = state.get("research_results", {})
+    if not isinstance(research_results, dict):
+        raise ValueError("Research results must be a dictionary")
+    
+    # Check if we have some data to calculate with
+    flights = research_results.get("flights", [])
+    accommodations = research_results.get("accommodations", {})
+    hotels = accommodations.get("hotels", []) if isinstance(accommodations, dict) else []
+    
+    if not flights and not hotels:
+        raise ValueError("No flight or hotel data available for cost calculation")
+
+def _validate_planner_inputs(state: Dict[str, Any]) -> None:
+    """Validate inputs required by the planner node."""
+    required_fields = ["destination", "start_date", "return_date"]
+    for field in required_fields:
+        value = state.get(field, "")
+        if not value or value.strip() == "":
+            raise ValueError(f"Missing required field for planning: {field}")
+
+def _validate_summarizer_inputs(state: Dict[str, Any]) -> None:
+    """Validate inputs required by the summarizer node."""
+    required_data = ["research_results", "calculator_results", "planner_results"]
+    missing_data = []
+    
+    for data_field in required_data:
+        if data_field not in state or not state[data_field]:
+            missing_data.append(data_field)
+    
+    if len(missing_data) == len(required_data):
+        raise ValueError("No data available from previous nodes for summarization")
+
+def _validate_node_output(node_name: str, output: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and sanitize node output."""
+    if not isinstance(output, dict):
+        raise ValueError(f"{node_name} must return a dictionary")
+    
+    # Ensure no None values in critical fields
+    for key, value in output.items():
+        if value is None:
+            print(f"⚠️ {node_name} returned None for {key}, replacing with empty default")
+            if key.endswith("_messages"):
+                output[key] = []
+            elif key.endswith("_results"):
+                output[key] = {}
+            else:
+                output[key] = ""
+    
+    return output
+
+# ===============================
 # DEFENSIVE NODE IMPLEMENTATIONS
 # ===============================
 
-@defensive_node(max_iterations=10)
 def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Defensive Manager Node with comprehensive error handling.
@@ -65,6 +143,17 @@ def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
     The manager coordinates the overall workflow and validates inputs.
     """
     print(f"\n🎬 DEFENSIVE MANAGER NODE - Processing request")
+    
+    # Lightweight state validation - only validate inputs needed by this node
+    try:
+        _validate_manager_inputs(state)
+        print("✅ MANAGER STATE VALIDATION: All required inputs validated successfully")
+    except Exception as e:
+        print(f"❌ MANAGER STATE VALIDATION FAILED: {e}")
+        return {
+            "manager_messages": [f"❌ Input validation failed: {str(e)}"],
+            "final_plan": f"Cannot proceed with trip planning: Input validation failed - {str(e)}"
+        }
     
     try:
         # Validate required inputs
@@ -91,9 +180,10 @@ def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
             error_msg = f"Missing required information: {', '.join(missing_fields)}"
             manager_message = f"❌ ERROR: {error_msg}. Please provide all required travel details."
             
-            state["manager_messages"].append(manager_message)
-            state["final_plan"] = f"Cannot proceed with trip planning: {error_msg}"
-            return state
+            return {
+                "manager_messages": [manager_message],
+                "final_plan": f"Cannot proceed with trip planning: {error_msg}"
+            }
         
         # Validate date format and logic
         try:
@@ -103,9 +193,10 @@ def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
             if start_dt >= return_dt:
                 error_msg = "Start date must be before return date"
                 manager_message = f"❌ ERROR: {error_msg}"
-                state["manager_messages"].append(manager_message)
-                state["final_plan"] = f"Cannot proceed with trip planning: {error_msg}"
-                return state
+                return {
+                    "manager_messages": [manager_message],
+                    "final_plan": f"Cannot proceed with trip planning: {error_msg}"
+                }
                 
             # Check if dates are in the past
             if start_dt < datetime.now():
@@ -115,12 +206,15 @@ def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
         except ValueError as e:
             error_msg = f"Invalid date format: {e}"
             manager_message = f"❌ ERROR: {error_msg}"
-            state["manager_messages"].append(manager_message)
-            state["final_plan"] = f"Cannot proceed with trip planning: {error_msg}"
-            return state
+            return {
+                "manager_messages": [manager_message],
+                "final_plan": f"Cannot proceed with trip planning: {error_msg}"
+            }
         
         # Create comprehensive manager message
         trip_duration = (return_dt - start_dt).days
+        manager_messages = []
+        
         manager_message = (
             f"✅ MANAGER: Successfully validated trip request.\n"
             f"📍 Trip: {current_location} → {destination}\n"
@@ -128,27 +222,35 @@ def defensive_manager_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"📝 Request: {user_request}\n"
             f"🚀 Proceeding to research phase..."
         )
+        manager_messages.append(manager_message)
         
-        state["manager_messages"].append(manager_message)
+        # Check if dates are in the past
+        if start_dt < datetime.now():
+            warning_msg = "⚠️ WARNING: Start date is in the past. Proceeding with planning anyway."
+            manager_messages.append(warning_msg)
         
         # Add system health information
         health = get_system_health()
         if any(status.get("disabled", False) for status in health.get("circuit_breakers", {}).values()):
             warning_msg = "⚠️ WARNING: Some services are currently experiencing issues. Fallback data may be used."
-            state["manager_messages"].append(warning_msg)
+            manager_messages.append(warning_msg)
         
-        return state
+        # Validate and return manager results
+        output = {
+            "manager_messages": manager_messages
+        }
+        print("✅ MANAGER OUTPUT VALIDATION: Manager output validated successfully")
+        return _validate_node_output("Manager", output)
         
     except Exception as e:
         error_msg = f"Manager node encountered an unexpected error: {str(e)}"
         print(f"❌ MANAGER ERROR: {error_msg}")
         
-        state["manager_messages"].append(f"❌ MANAGER ERROR: {error_msg}")
-        state["final_plan"] = f"Trip planning failed due to manager error: {error_msg}"
-        
-        return state
+        return {
+            "manager_messages": [f"❌ MANAGER ERROR: {error_msg}"],
+            "final_plan": f"Trip planning failed due to manager error: {error_msg}"
+        }
 
-@defensive_node(max_iterations=8)
 def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Defensive Researcher Node with circuit breaker protection for API calls.
@@ -156,6 +258,21 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Researches flights, hotels, and destination information with fallback strategies.
     """
     print(f"\n🔬 DEFENSIVE RESEARCHER NODE - Gathering travel data")
+    
+    # Lightweight state validation - only validate inputs needed by this node
+    try:
+        _validate_researcher_inputs(state)
+        print("✅ RESEARCHER STATE VALIDATION: All required inputs validated successfully")
+    except Exception as e:
+        print(f"❌ RESEARCHER STATE VALIDATION FAILED: {e}")
+        return {
+            "researcher_messages": [f"❌ Input validation failed: {str(e)}"],
+            "research_results": {
+                "flights": [],
+                "accommodations": {"hotels": [], "query": "unknown", "total_found": 0},
+                "destination_info": [{"content": f"Research failed: {str(e)}"}]
+            }
+        }
     
     try:
         current_location = state.get("current_location", "")
@@ -169,18 +286,46 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # 1. FLIGHT RESEARCH with defensive patterns
         print("🛫 Researching flights with defensive patterns...")
         try:
+            # Convert city names to codes (same as original)
+            source_code = get_city_code(current_location)
+            dest_code = get_city_code(destination)
+            
+            # Format dates with time (same as original)
+            outbound_departure_start = f"{start_date}T00:00:00"
+            outbound_departure_end = f"{start_date}T23:59:59"
+            inbound_departure_start = f"{return_date}T00:00:00"
+            inbound_departure_end = f"{return_date}T23:59:59"
+            
             flight_params = {
-                "source": current_location,
-                "destination": destination,
+                "source": source_code,
+                "destination": dest_code,
                 "adults": 1,
                 "currency": "USD",
-                "outboundDepartureDateStart": start_date,
-                "outboundDepartureDateEnd": start_date,
-                "inboundDepartureDateStart": return_date,
-                "inboundDepartureDateEnd": return_date
+                "outboundDepartureDateStart": outbound_departure_start,
+                "outboundDepartureDateEnd": outbound_departure_end,
+                "inboundDepartureDateStart": inbound_departure_start,
+                "inboundDepartureDateEnd": inbound_departure_end
             }
             
-            flight_result = get_flight_prices_defensive.invoke(flight_params)
+            # Use the original flight tool with defensive wrapper
+            flight_result = safe_api_call(
+                tool_name="flight_search",
+                api_func=lambda: get_flight_prices.invoke(flight_params),
+                fallback_func=lambda: {"success": False, "flights": [], "count": 0, "error": "Flight search service unavailable"}
+            )
+            
+            # Validate flight response with Pydantic
+            try:
+                from defensive_patterns import ValidatedFlightResponse
+                validated_flight = ValidatedFlightResponse(**flight_result)
+                flight_result = validated_flight.dict()
+                print("✅ FLIGHT API OUTPUT VALIDATION: Flight response validated with Pydantic schema")
+                researcher_messages.append(f"✅ Flight response validated successfully")
+            except Exception as e:
+                print(f"❌ FLIGHT API OUTPUT VALIDATION FAILED: {str(e)}")
+                researcher_messages.append(f"⚠️ Flight response validation failed: {str(e)}")
+                # Use fallback data if validation fails
+                flight_result = {"success": False, "flights": [], "count": 0, "error": f"Response validation failed: {str(e)}"}
             
             if flight_result.get("success", False) and flight_result.get("flights"):
                 research_results["flights"] = flight_result["flights"][:5]  # Limit to top 5
@@ -211,7 +356,38 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "children": 0
             }
             
-            hotel_result = hotel_search_defensive.invoke(hotel_params)
+            # Use the original hotel tool with defensive wrapper
+            hotel_result = safe_api_call(
+                tool_name="hotel_search",
+                api_func=lambda: hotel_search.invoke({
+                    "gl": "us",
+                    "hl": "en",
+                    "currency": "USD",
+                    **hotel_params
+                }),
+                fallback_func=lambda: {"hotels": [], "query": destination, "total_found": 0, "error": "Hotel search service unavailable"}
+            )
+            
+            # Validate hotel response with Pydantic
+            try:
+                from defensive_patterns import ValidatedHotelResponse
+                # Ensure the response has the expected structure
+                if "hotels" in hotel_result and not "check_in_date" in hotel_result:
+                    hotel_result.update({
+                        "query": hotel_result.get("query", destination),
+                        "check_in_date": start_date,
+                        "check_out_date": return_date,
+                        "total_found": len(hotel_result.get("hotels", []))
+                    })
+                validated_hotel = ValidatedHotelResponse(**hotel_result)
+                hotel_result = validated_hotel.dict()
+                print("✅ HOTEL API OUTPUT VALIDATION: Hotel response validated with Pydantic schema")
+                researcher_messages.append(f"✅ Hotel response validated successfully")
+            except Exception as e:
+                print(f"❌ HOTEL API OUTPUT VALIDATION FAILED: {str(e)}")
+                researcher_messages.append(f"⚠️ Hotel response validation failed: {str(e)}")
+                # Use fallback data if validation fails
+                hotel_result = {"hotels": [], "query": destination, "check_in_date": start_date, "check_out_date": return_date, "total_found": 0, "error": f"Response validation failed: {str(e)}"}
             
             if hotel_result.get("hotels"):
                 research_results["accommodations"] = {
@@ -232,9 +408,13 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # 3. DESTINATION INFO with fallback
         print("🗺️ Researching destination information...")
         try:
+            destination_query = f"best things to do in {destination} attractions activities restaurants"
             dest_info_result = safe_api_call(
                 tool_name="destination_info",
-                api_func=lambda: get_destination_info.invoke({"destination": destination}),
+                api_func=lambda: get_destination_info.invoke({
+                    "query": destination_query,
+                    "num_results": 3
+                }),
                 fallback_func=lambda: [{"content": f"General information about {destination} is currently unavailable."}]
             )
             
@@ -244,10 +424,6 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as e:
             research_results["destination_info"] = [{"content": f"Destination information unavailable: {str(e)}"}]
             researcher_messages.append(f"⚠️ Destination info limited: {str(e)}")
-        
-        # Update state with results
-        state["research_results"] = research_results
-        state["researcher_messages"].extend(researcher_messages)
         
         # Add summary message
         total_flights = len(research_results.get("flights", []))
@@ -261,24 +437,29 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"🔧 System status: {len([s for s in get_system_health().get('circuit_breakers', {}).values() if s.get('disabled', False)])} services experiencing issues"
         )
         
-        state["researcher_messages"].append(summary_msg)
+        researcher_messages.append(summary_msg)
         
-        return state
+        # Validate and return comprehensive research results
+        output = {
+            "research_results": research_results,
+            "researcher_messages": researcher_messages
+        }
+        print("✅ RESEARCHER OUTPUT VALIDATION: Researcher output validated successfully")
+        return _validate_node_output("Researcher", output)
         
     except Exception as e:
         error_msg = f"Researcher node encountered an unexpected error: {str(e)}"
         print(f"❌ RESEARCHER ERROR: {error_msg}")
         
-        state["researcher_messages"].append(f"❌ RESEARCHER ERROR: {error_msg}")
-        state["research_results"] = {
-            "flights": [],
-            "accommodations": {"hotels": [], "query": destination, "total_found": 0},
-            "destination_info": [{"content": f"Research failed: {error_msg}"}]
+        return {
+            "researcher_messages": [f"❌ RESEARCHER ERROR: {error_msg}"],
+            "research_results": {
+                "flights": [],
+                "accommodations": {"hotels": [], "query": destination, "total_found": 0},
+                "destination_info": [{"content": f"Research failed: {error_msg}"}]
+            }
         }
-        
-        return state
 
-@defensive_node(max_iterations=5)
 def defensive_planner_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Defensive Planner Node with weather and events research.
@@ -286,6 +467,19 @@ def defensive_planner_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Plans the itinerary with weather forecasts and local events.
     """
     print(f"\n📅 DEFENSIVE PLANNER NODE - Creating itinerary")
+    
+    # Lightweight state validation - only validate inputs needed by this node
+    try:
+        _validate_planner_inputs(state)
+    except Exception as e:
+        print(f"⚠️ Planner input validation failed: {e}")
+        return {
+            "planner_messages": [f"❌ Input validation failed: {str(e)}"],
+            "planner_results": {
+                "weather_forecast": {"forecasts": [], "human_readable_summary": f"Planning failed: {str(e)}", "error": str(e)},
+                "local_events": {"events": [], "query": "unknown", "error": str(e)}
+            }
+        }
     
     try:
         destination = state.get("destination", "")
@@ -308,6 +502,23 @@ def defensive_planner_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 "days": trip_days,
                 "units": "metric"
             })
+            
+            # Validate weather response with Pydantic
+            try:
+                from defensive_patterns import ValidatedWeatherResponse
+                validated_weather = ValidatedWeatherResponse(**weather_result)
+                weather_result = validated_weather.dict()
+                print("✅ WEATHER API OUTPUT VALIDATION: Weather response validated with Pydantic schema")
+                planner_messages.append(f"✅ Weather response validated successfully")
+            except Exception as e:
+                print(f"❌ WEATHER API OUTPUT VALIDATION FAILED: {str(e)}")
+                planner_messages.append(f"⚠️ Weather response validation failed: {str(e)}")
+                # Use fallback data if validation fails
+                weather_result = {
+                    "forecasts": [],
+                    "human_readable_summary": f"Weather forecast validation failed: {str(e)}",
+                    "error": f"Response validation failed: {str(e)}"
+                }
             
             if weather_result.get("forecasts"):
                 planner_results["weather_forecast"] = weather_result
@@ -349,10 +560,6 @@ def defensive_planner_node(state: Dict[str, Any]) -> Dict[str, Any]:
             planner_results["local_events"] = []
             planner_messages.append(f"❌ Events search failed: {str(e)}")
         
-        # Update state with results
-        state["planner_results"] = planner_results
-        state["planner_messages"].extend(planner_messages)
-        
         # Create planning summary
         weather_available = bool(planner_results.get("weather_forecast", {}).get("forecasts"))
         events_count = len(planner_results.get("local_events", []))
@@ -365,27 +572,31 @@ def defensive_planner_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"🔧 All planning data collected successfully"
         )
         
-        state["planner_messages"].append(summary_msg)
+        planner_messages.append(summary_msg)
         
-        return state
+        # Validate and return only the fields we want to update
+        output = {
+            "planner_results": planner_results,
+            "planner_messages": planner_messages
+        }
+        return _validate_node_output("Planner", output)
         
     except Exception as e:
         error_msg = f"Planner node encountered an unexpected error: {str(e)}"
         print(f"❌ PLANNER ERROR: {error_msg}")
         
-        state["planner_messages"].append(f"❌ PLANNER ERROR: {error_msg}")
-        state["planner_results"] = {
-            "weather_forecast": {
-                "forecasts": [],
-                "human_readable_summary": f"Planning failed: {error_msg}",
-                "error": error_msg
-            },
-            "local_events": []
+        return {
+            "planner_messages": [f"❌ PLANNER ERROR: {error_msg}"],
+            "planner_results": {
+                "weather_forecast": {
+                    "forecasts": [],
+                    "human_readable_summary": f"Planning failed: {error_msg}",
+                    "error": error_msg
+                },
+                "local_events": []
+            }
         }
-        
-        return state
 
-@defensive_node(max_iterations=5)
 def defensive_calculator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Defensive Calculator Node with comprehensive cost analysis.
@@ -393,6 +604,21 @@ def defensive_calculator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Calculates trip costs with error handling and validation.
     """
     print(f"\n💵 DEFENSIVE CALCULATOR NODE - Computing costs")
+    
+    # Lightweight state validation - only validate inputs needed by this node
+    try:
+        _validate_calculator_inputs(state)
+        print("✅ CALCULATOR STATE VALIDATION: All required inputs validated successfully")
+    except Exception as e:
+        print(f"❌ CALCULATOR STATE VALIDATION FAILED: {e}")
+        return {
+            "calculator_messages": [f"❌ Input validation failed: {str(e)}"],
+            "calculator_results": {
+                "total_cost": 0,
+                "cost_breakdown": {"flights": 0, "accommodation": 0, "total": 0},
+                "error": str(e)
+            }
+        }
     
     try:
         start_date = state.get("start_date", "")
@@ -470,9 +696,6 @@ def defensive_calculator_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "calculation_timestamp": datetime.now().isoformat()
         }
         
-        state["calculator_results"] = calculator_results
-        state["calculator_messages"].extend(calculator_messages)
-        
         # Create summary message
         summary_msg = (
             f"💵 CALCULATOR SUMMARY:\n"
@@ -484,33 +707,37 @@ def defensive_calculator_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"📊 Commission (15%): ${commission_amount:.2f}"
         )
         
-        state["calculator_messages"].append(summary_msg)
+        calculator_messages.append(summary_msg)
         
-        return state
+        # Validate and return only the fields we want to update
+        output = {
+            "calculator_results": calculator_results,
+            "calculator_messages": calculator_messages
+        }
+        return _validate_node_output("Calculator", output)
         
     except Exception as e:
         error_msg = f"Calculator node encountered an unexpected error: {str(e)}"
         print(f"❌ CALCULATOR ERROR: {error_msg}")
         
-        state["calculator_messages"].append(f"❌ CALCULATOR ERROR: {error_msg}")
-        state["calculator_results"] = {
-            "days": 7,
-            "flight_total": 0.0,
-            "hotel_total": 0.0,
-            "daily_cost_estimate": 100.0,
-            "daily_total": 700.0,
-            "subtotal": 700.0,
-            "commission_rate": 0.15,
-            "commission_amount": 105.0,
-            "final_quotation": 805.0,
-            "currency": "USD",
-            "error": error_msg,
-            "calculation_timestamp": datetime.now().isoformat()
+        return {
+            "calculator_messages": [f"❌ CALCULATOR ERROR: {error_msg}"],
+            "calculator_results": {
+                "days": 7,
+                "flight_total": 0.0,
+                "hotel_total": 0.0,
+                "daily_cost_estimate": 100.0,
+                "daily_total": 700.0,
+                "subtotal": 700.0,
+                "commission_rate": 0.15,
+                "commission_amount": 105.0,
+                "final_quotation": 805.0,
+                "currency": "USD",
+                "error": error_msg,
+                "calculation_timestamp": datetime.now().isoformat()
+            }
         }
-        
-        return state
 
-@defensive_node(max_iterations=3)
 def defensive_summarizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Defensive Summarizer Node that creates the final travel plan.
@@ -518,6 +745,17 @@ def defensive_summarizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Synthesizes all research into a comprehensive travel plan with error handling.
     """
     print(f"\n📝 DEFENSIVE SUMMARIZER NODE - Creating final plan")
+    
+    # Lightweight state validation - only validate inputs needed by this node
+    try:
+        _validate_summarizer_inputs(state)
+    except Exception as e:
+        print(f"⚠️ Summarizer input validation failed: {e}")
+        return {
+            "summarizer_messages": [f"❌ Input validation failed: {str(e)}"],
+            "final_plan": f"Unable to create travel plan: {str(e)}",
+            "plan_approved": False
+        }
     
     try:
         # Extract all collected data
@@ -633,10 +871,6 @@ def defensive_summarizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
         # Join all sections
         final_plan = "\n".join(plan_sections)
         
-        # Update state
-        state["final_plan"] = final_plan
-        state["plan_approved"] = True
-        
         # Add summarizer message
         summary_msg = (
             f"📝 SUMMARIZER COMPLETE:\n"
@@ -646,9 +880,13 @@ def defensive_summarizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"🎯 Ready for client presentation"
         )
         
-        state["summarizer_messages"].append(summary_msg)
-        
-        return state
+        # Validate and return only the fields we want to update
+        output = {
+            "final_plan": final_plan,
+            "plan_approved": True,
+            "summarizer_messages": [summary_msg]
+        }
+        return _validate_node_output("Summarizer", output)
         
     except Exception as e:
         error_msg = f"Summarizer node encountered an unexpected error: {str(e)}"
@@ -664,78 +902,22 @@ def defensive_summarizer_node(state: Dict[str, Any]) -> Dict[str, Any]:
             f"Dates: {state.get('start_date', 'Unknown')} to {state.get('return_date', 'Unknown')}"
         )
         
-        state["final_plan"] = emergency_plan
-        state["plan_approved"] = False
-        state["summarizer_messages"].append(f"❌ SUMMARIZER ERROR: {error_msg}")
-        
-        return state
+        return {
+            "final_plan": emergency_plan,
+            "plan_approved": False,
+            "summarizer_messages": [f"❌ SUMMARIZER ERROR: {error_msg}"]
+        }
 
-@defensive_node(max_iterations=3)
 def defensive_merge_node(state: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Defensive Merge Node that consolidates results from parallel nodes.
+    Defensive Merge Node that acts as a synchronization point.
     
-    Ensures all data is properly merged and validated.
+    Just like the original, this doesn't update state - it just ensures both parallel nodes completed.
     """
     print(f"\n🔄 DEFENSIVE MERGE NODE - Consolidating results")
     
-    try:
-        # Validate that we have results from both calculator and planner
-        calculator_results = state.get("calculator_results", {})
-        planner_results = state.get("planner_results", {})
-        
-        merge_messages = []
-        
-        # Check calculator results
-        if calculator_results:
-            merge_messages.append("✅ Calculator results available")
-        else:
-            merge_messages.append("⚠️ Calculator results missing")
-            state["calculator_results"] = {
-                "days": 7,
-                "final_quotation": 1000.0,
-                "error": "Calculator results unavailable"
-            }
-        
-        # Check planner results
-        if planner_results:
-            merge_messages.append("✅ Planner results available")
-        else:
-            merge_messages.append("⚠️ Planner results missing")
-            state["planner_results"] = {
-                "weather_forecast": {"human_readable_summary": "Weather unavailable"},
-                "local_events": [],
-                "error": "Planner results unavailable"
-            }
-        
-        # Validate data consistency
-        calc_days = calculator_results.get("days", 7)
-        weather_days = len(planner_results.get("weather_forecast", {}).get("forecasts", []))
-        
-        if weather_days > 0 and abs(calc_days - weather_days) > 1:
-            merge_messages.append(f"⚠️ Date inconsistency detected: calc={calc_days}, weather={weather_days}")
-        
-        # Add merge summary
-        merge_summary = (
-            f"🔄 MERGE COMPLETE:\n"
-            f"📊 Calculator: {'✅' if calculator_results else '❌'}\n"
-            f"📅 Planner: {'✅' if planner_results else '❌'}\n"
-            f"🔧 Data consolidated and validated\n"
-            f"➡️ Ready for final summarization"
-        )
-        
-        # Add merge messages to manager (since merge doesn't have its own message list)
-        state["manager_messages"].append(merge_summary)
-        
-        return state
-        
-    except Exception as e:
-        error_msg = f"Merge node encountered an unexpected error: {str(e)}"
-        print(f"❌ MERGE ERROR: {error_msg}")
-        
-        state["manager_messages"].append(f"❌ MERGE ERROR: {error_msg}")
-        
-        return state
+    # Just like the original merge node, return empty dict for synchronization
+    return {}
 
 # ===============================
 # NODE FACTORY FUNCTIONS

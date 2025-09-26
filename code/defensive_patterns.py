@@ -550,6 +550,75 @@ def test_circuit_breaker():
     # Check status
     print("Circuit breaker status:", circuit_breaker.get_status())
 
+# ===============================
+# API RESPONSE VALIDATION MODELS
+# ===============================
+
+class ValidatedFlightResponse(BaseModel):
+    """Pydantic model for validating flight API responses."""
+    success: bool = Field(default=True, description="Whether the flight search was successful")
+    flights: List[Dict[str, Any]] = Field(default_factory=list, description="List of flight options")
+    count: int = Field(default=0, description="Number of flights found")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+    
+    @validator('count', pre=True, always=True)
+    def validate_count(cls, v, values):
+        if 'flights' in values:
+            return len(values['flights'])
+        return v or 0
+    
+    @validator('success', pre=True, always=True)
+    def validate_success(cls, v, values):
+        if 'error' in values and values['error']:
+            return False
+        return v if v is not None else True
+
+class ValidatedHotelResponse(BaseModel):
+    """Pydantic model for validating hotel API responses."""
+    hotels: List[Dict[str, Any]] = Field(default_factory=list, description="List of hotel options")
+    query: str = Field(default="", description="Search query used")
+    check_in_date: Optional[str] = Field(default=None, description="Check-in date")
+    check_out_date: Optional[str] = Field(default=None, description="Check-out date")
+    total_found: int = Field(default=0, description="Total number of hotels found")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+    
+    @validator('total_found', pre=True, always=True)
+    def validate_total_found(cls, v, values):
+        if 'hotels' in values:
+            return len(values['hotels'])
+        return v or 0
+
+class ValidatedWeatherResponse(BaseModel):
+    """Pydantic model for validating weather API responses."""
+    forecasts: List[Dict[str, Any]] = Field(default_factory=list, description="Weather forecast data")
+    human_readable_summary: str = Field(default="", description="Human readable weather summary")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+    
+    @validator('human_readable_summary', pre=True, always=True)
+    def validate_summary(cls, v, values):
+        if not v and 'forecasts' in values and values['forecasts']:
+            return f"Weather forecast available for {len(values['forecasts'])} days"
+        return v or "Weather information unavailable"
+
+class ValidatedEventResponse(BaseModel):
+    """Pydantic model for validating event API responses."""
+    events: List[Dict[str, Any]] = Field(default_factory=list, description="List of events")
+    query: str = Field(default="", description="Search query used")
+    total_found: int = Field(default=0, description="Total number of events found")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+    
+    @validator('total_found', pre=True, always=True)
+    def validate_total_found(cls, v, values):
+        if 'events' in values:
+            return len(values['events'])
+        return v or 0
+
+class ValidatedDestinationResponse(BaseModel):
+    """Pydantic model for validating destination info API responses."""
+    results: List[Dict[str, Any]] = Field(default_factory=list, description="Destination information results")
+    query: str = Field(default="", description="Search query used")
+    error: Optional[str] = Field(default=None, description="Error message if any")
+
 if __name__ == "__main__":
     # Run basic tests
     print("Testing defensive patterns...")
