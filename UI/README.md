@@ -42,22 +42,31 @@ pip install -r requirements.txt
 
 #### 1. Original VacayMate UI
 ```bash
-cd UI
-streamlit run app.py
+# Linux/Mac
+cd UI && streamlit run app.py
+
+# Windows PowerShell
+cd UI; python -m streamlit run app.py
 ```
 Access at: http://localhost:8501
 
 #### 2. Defensive VacayMate UI (Recommended)
 ```bash
-cd UI
-streamlit run app_defensive.py --server.port 8502
+# Linux/Mac
+cd UI && streamlit run app_defensive.py --server.port 8502
+
+# Windows PowerShell
+cd UI; python -m streamlit run app_defensive.py --server.port 8502
 ```
 Access at: http://localhost:8502
 
 #### 3. System Dashboard
 ```bash
-cd UI
-streamlit run dashboard.py --server.port 8503
+# Linux/Mac
+cd UI && streamlit run dashboard.py --server.port 8503
+
+# Windows PowerShell
+cd UI; python -m streamlit run dashboard.py --server.port 8503
 ```
 Access at: http://localhost:8503
 

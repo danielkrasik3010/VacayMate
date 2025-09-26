@@ -117,19 +117,31 @@ pip install -r requirements.txt
 
 #### **Production UI (Recommended)**
 ```bash
-streamlit run app_defensive.py --server.port 8502
+# Linux/Mac
+cd UI && streamlit run app_defensive.py --server.port 8502
+
+# Windows PowerShell
+cd UI; python -m streamlit run app_defensive.py --server.port 8502
 ```
 Access: http://localhost:8502
 
 #### **System Dashboard**
 ```bash
-streamlit run dashboard.py --server.port 8503
+# Linux/Mac
+cd UI && streamlit run dashboard.py --server.port 8503
+
+# Windows PowerShell
+cd UI; python -m streamlit run dashboard.py --server.port 8503
 ```
 Access: http://localhost:8503
 
 #### **Original UI (For Comparison)**
 ```bash
-streamlit run app.py --server.port 8501
+# Linux/Mac
+cd UI && streamlit run app.py --server.port 8501
+
+# Windows PowerShell
+cd UI; python -m streamlit run app.py --server.port 8501
 ```
 Access: http://localhost:8501
 
