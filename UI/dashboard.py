@@ -24,7 +24,9 @@ sys.path.insert(0, str(code_dir))
 # Import defensive patterns for health monitoring
 try:
     from defensive_patterns import get_system_health
+    REAL_DATA_AVAILABLE = True
 except ImportError:
+    REAL_DATA_AVAILABLE = False
     def get_system_health():
         return {
             "circuit_breakers": {
@@ -34,7 +36,7 @@ except ImportError:
                 "events_search": {"disabled": False, "failures": 0, "last_success": "2025-09-26 15:30:00"},
                 "destination_info": {"disabled": False, "failures": 0, "last_success": "2025-09-26 15:30:00"}
             },
-            "memory_usage_mb": psutil.Process().memory_info().rss / 1024 / 1024 if psutil else 100,
+            "memory_usage_mb": 100,
             "uptime_seconds": 3600
         }
 
@@ -151,11 +153,13 @@ def initialize_dashboard_data():
 
 def display_dashboard_header():
     """Display the main dashboard header"""
-    st.markdown("""
+    data_source = "🟢 Real-time Data" if REAL_DATA_AVAILABLE else "🟡 Demo Data"
+    st.markdown(f"""
     <div class="main-header">
         <h1>🛡️ VacayMate Defensive System Dashboard</h1>
         <p>Real-time monitoring of production-ready travel planning system</p>
         <p><em>📊 Comprehensive metrics | 🔍 System health | 🛡️ Defensive patterns monitoring</em></p>
+        <p><strong>Data Source: {data_source}</strong></p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -354,7 +358,7 @@ def display_circuit_breaker_status():
             })
         
         df = pd.DataFrame(cb_data)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
         
         # Circuit breaker status visualization
         col1, col2 = st.columns(2)
@@ -372,7 +376,7 @@ def display_circuit_breaker_status():
                 title="Circuit Breaker Health Distribution",
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         
         with col2:
             # Failure count bar chart
@@ -381,7 +385,7 @@ def display_circuit_breaker_status():
                         color='Failures',
                         color_continuous_scale='RdYlGn_r')
             fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
     else:
         st.info("🔌 Circuit breaker data will be available after system initialization")
 
@@ -417,7 +421,7 @@ def display_performance_metrics():
                 yaxis_title="Response Time (seconds)",
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("📊 Response time data will appear after processing requests")
     
@@ -438,7 +442,7 @@ def display_performance_metrics():
                 title="Request Success Rate",
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("📊 Request data will appear after processing requests")
 

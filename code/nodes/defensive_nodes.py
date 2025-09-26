@@ -418,7 +418,22 @@ def defensive_researcher_node(state: Dict[str, Any]) -> Dict[str, Any]:
                 fallback_func=lambda: [{"content": f"General information about {destination} is currently unavailable."}]
             )
             
-            research_results["destination_info"] = dest_info_result
+            # Ensure the result is in the correct format (list of dicts with 'content' key)
+            if isinstance(dest_info_result, list):
+                # Check if items are strings and convert them to the expected format
+                formatted_results = []
+                for item in dest_info_result:
+                    if isinstance(item, str):
+                        formatted_results.append({"content": item})
+                    elif isinstance(item, dict) and "content" in item:
+                        formatted_results.append(item)
+                    else:
+                        formatted_results.append({"content": str(item)})
+                research_results["destination_info"] = formatted_results
+            else:
+                # If it's not a list, wrap it in the expected format
+                research_results["destination_info"] = [{"content": str(dest_info_result)}]
+            
             researcher_messages.append(f"✅ Gathered destination information for {destination}")
             
         except Exception as e:

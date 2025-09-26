@@ -435,7 +435,7 @@ def display_performance_dashboard():
                 yaxis_title="Response Time (seconds)",
                 height=300
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("📊 Response time data will appear after running requests")
     
@@ -454,7 +454,7 @@ def display_performance_dashboard():
                     title="Request Success Rate",
                     height=300
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
             else:
                 st.info("📊 Success rate data will appear after running requests")
 
@@ -528,7 +528,7 @@ def display_circuit_breaker_dashboard():
                 })
             
             df = pd.DataFrame(cb_data)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
             
             # Circuit Breaker Status Chart
             status_counts = df['Status'].value_counts()
@@ -542,7 +542,7 @@ def display_circuit_breaker_dashboard():
                 title="Circuit Breaker Status Distribution",
                 height=400
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("🔌 Circuit breaker data will appear after running the system")
     else:
@@ -672,8 +672,18 @@ def run_defensive_vacaymate_system(departure_city, destination_city, start_date,
         try:
             system_health = vacay_mate.get_system_health()
             st.session_state.last_system_health = system_health
-        except:
-            pass
+            
+            # Update real metrics from the system
+            if 'system_metrics' in st.session_state:
+                # Get real memory usage
+                try:
+                    import psutil
+                    real_memory = psutil.Process().memory_info().rss / 1024 / 1024
+                    st.session_state.system_metrics['memory_usage'] = real_memory
+                except:
+                    pass
+        except Exception as e:
+            print(f"Warning: Could not get system health: {e}")
         
         return final_state, response_time
         
