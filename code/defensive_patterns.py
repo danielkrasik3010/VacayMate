@@ -23,6 +23,18 @@ from pydantic import BaseModel, Field, validator
 import requests
 from datetime import datetime
 
+# LangSmith tracing
+try:
+    from langsmith import traceable
+    LANGSMITH_AVAILABLE = True
+except ImportError:
+    LANGSMITH_AVAILABLE = False
+    def traceable(*args, **kwargs):
+        """Fallback decorator when LangSmith is not available."""
+        def decorator(func):
+            return func
+        return decorator
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -101,6 +113,7 @@ class ToolCircuitBreaker:
         self.disabled_until = {}
         self.last_success = {}
     
+    @traceable(name="Circuit_Breaker_Call", tags=["circuit_breaker", "defensive"])
     def call_tool(self, tool_name: str, tool_func: Callable, fallback_func: Callable, *args, **kwargs):
         """
         Call a tool with circuit breaker protection.
@@ -492,6 +505,7 @@ def weather_fallback(*args, **kwargs) -> Dict[str, Any]:
 # UTILITY FUNCTIONS
 # ===============================
 
+@traceable(name="Safe_API_Call", tags=["api", "defensive", "circuit_breaker"])
 def safe_api_call(tool_name: str, api_func: Callable, fallback_func: Callable, 
                  *args, **kwargs) -> Dict[str, Any]:
     """
@@ -503,6 +517,21 @@ def safe_api_call(tool_name: str, api_func: Callable, fallback_func: Callable,
         fallback_func: Fallback function if API fails
         *args, **kwargs: Arguments for the API function
     """
+    # Add tracing metadata if available
+    if LANGSMITH_AVAILABLE:
+        try:
+            from langsmith import get_current_run_tree
+            run_tree = get_current_run_tree()
+            if run_tree:
+                run_tree.add_metadata({
+                    "tool_name": tool_name,
+                    "api_function": api_func.__name__ if hasattr(api_func, '__name__') else str(api_func),
+                    "has_fallback": fallback_func is not None,
+                    "circuit_breaker_status": circuit_breaker.get_status().get(tool_name, {})
+                })
+                run_tree.add_tags([tool_name, "api_call"])
+        except Exception:
+            pass  # Ignore tracing errors
     @retry_with_backoff(max_retries=3, base_delay=1.0)
     @resource_limited(max_memory_mb=100, max_time_seconds=30)
     def protected_api_call():
