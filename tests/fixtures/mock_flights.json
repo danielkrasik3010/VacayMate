@@ -1,0 +1,174 @@
+{
+  "flights": [
+    {
+      "id": "flight_001",
+      "priceUSD": 285.50,
+      "priceEUR": 265.30,
+      "durationOutbound": "2h 30m",
+      "durationInbound": "2h 45m",
+      "lastAvailableSeats": 12,
+      "airline": "Air Europa",
+      "flightNumber": "UX1234",
+      "departureAirport": "BCN",
+      "arrivalAirport": "CDG",
+      "departureTime": "2025-09-15T08:30:00",
+      "arrivalTime": "2025-09-15T11:00:00",
+      "returnDepartureTime": "2025-09-20T16:15:00",
+      "returnArrivalTime": "2025-09-20T19:00:00",
+      "cabinClass": "Economy",
+      "bookingUrl": "https://example.com/book/flight001",
+      "outbound": {
+        "source": "Barcelona",
+        "sourceCode": "BCN",
+        "destination": "Paris",
+        "destinationCode": "CDG",
+        "departureLocalTime": "2025-09-15T08:30:00",
+        "arrivalLocalTime": "2025-09-15T11:00:00",
+        "carrier": "Air Europa",
+        "carrierCode": "UX",
+        "cabinClass": "Economy",
+        "summary": "Barcelona (BCN) to Paris (CDG) - 2h 30m"
+      },
+      "inbound": {
+        "source": "Paris", 
+        "sourceCode": "CDG",
+        "destination": "Barcelona",
+        "destinationCode": "BCN",
+        "departureLocalTime": "2025-09-20T16:15:00",
+        "arrivalLocalTime": "2025-09-20T19:00:00",
+        "carrier": "Air Europa",
+        "carrierCode": "UX", 
+        "cabinClass": "Economy",
+        "summary": "Paris (CDG) to Barcelona (BCN) - 2h 45m"
+      },
+      "human_readable_summary": "Round-trip flight Barcelona to Paris with Air Europa, departing Sep 15 at 8:30 AM, returning Sep 20 at 4:15 PM. Total cost: $285.50"
+    },
+    {
+      "id": "flight_002",
+      "priceUSD": 312.00,
+      "priceEUR": 290.00,
+      "durationOutbound": "2h 15m",
+      "durationInbound": "2h 20m", 
+      "lastAvailableSeats": 8,
+      "airline": "Vueling",
+      "flightNumber": "VY8765",
+      "departureAirport": "BCN",
+      "arrivalAirport": "ORY",
+      "departureTime": "2025-09-15T14:20:00",
+      "arrivalTime": "2025-09-15T16:35:00",
+      "returnDepartureTime": "2025-09-20T19:45:00",
+      "returnArrivalTime": "2025-09-20T22:05:00",
+      "cabinClass": "Economy",
+      "bookingUrl": "https://example.com/book/flight002",
+      "outbound": {
+        "source": "Barcelona",
+        "sourceCode": "BCN", 
+        "destination": "Paris",
+        "destinationCode": "ORY",
+        "departureLocalTime": "2025-09-15T14:20:00",
+        "arrivalLocalTime": "2025-09-15T16:35:00",
+        "carrier": "Vueling",
+        "carrierCode": "VY",
+        "cabinClass": "Economy",
+        "summary": "Barcelona (BCN) to Paris (ORY) - 2h 15m"
+      },
+      "inbound": {
+        "source": "Paris",
+        "sourceCode": "ORY",
+        "destination": "Barcelona", 
+        "destinationCode": "BCN",
+        "departureLocalTime": "2025-09-20T19:45:00",
+        "arrivalLocalTime": "2025-09-20T22:05:00",
+        "carrier": "Vueling",
+        "carrierCode": "VY",
+        "cabinClass": "Economy",
+        "summary": "Paris (ORY) to Barcelona (BCN) - 2h 20m"
+      },
+      "human_readable_summary": "Round-trip flight Barcelona to Paris with Vueling, departing Sep 15 at 2:20 PM, returning Sep 20 at 7:45 PM. Total cost: $312.00"
+    },
+    {
+      "id": "flight_003_edge_case",
+      "priceUSD": 0.0,
+      "priceEUR": 0.0,
+      "durationOutbound": "",
+      "durationInbound": "",
+      "lastAvailableSeats": 0,
+      "airline": "",
+      "flightNumber": "",
+      "departureAirport": "",
+      "arrivalAirport": "",
+      "departureTime": "",
+      "arrivalTime": "",
+      "cabinClass": "",
+      "bookingUrl": "",
+      "outbound": null,
+      "inbound": null,
+      "human_readable_summary": "No flight data available"
+    },
+    {
+      "id": "flight_004_expensive",
+      "priceUSD": 1250.75,
+      "priceEUR": 1162.50,
+      "durationOutbound": "1h 55m",
+      "durationInbound": "2h 05m",
+      "lastAvailableSeats": 2,
+      "airline": "Air France",
+      "flightNumber": "AF1234",
+      "departureAirport": "BCN",
+      "arrivalAirport": "CDG",
+      "departureTime": "2025-09-15T06:00:00",
+      "arrivalTime": "2025-09-15T07:55:00",
+      "returnDepartureTime": "2025-09-20T21:30:00",
+      "returnArrivalTime": "2025-09-20T23:35:00",
+      "cabinClass": "Business",
+      "bookingUrl": "https://example.com/book/flight004",
+      "outbound": {
+        "source": "Barcelona",
+        "sourceCode": "BCN",
+        "destination": "Paris",
+        "destinationCode": "CDG",
+        "departureLocalTime": "2025-09-15T06:00:00",
+        "arrivalLocalTime": "2025-09-15T07:55:00",
+        "carrier": "Air France",
+        "carrierCode": "AF",
+        "cabinClass": "Business",
+        "summary": "Barcelona (BCN) to Paris (CDG) - 1h 55m"
+      },
+      "inbound": {
+        "source": "Paris",
+        "sourceCode": "CDG",
+        "destination": "Barcelona",
+        "destinationCode": "BCN",
+        "departureLocalTime": "2025-09-20T21:30:00",
+        "arrivalLocalTime": "2025-09-20T23:35:00",
+        "carrier": "Air France",
+        "carrierCode": "AF",
+        "cabinClass": "Business",
+        "summary": "Paris (CDG) to Barcelona (BCN) - 2h 05m"
+      },
+      "human_readable_summary": "Premium round-trip flight Barcelona to Paris with Air France Business class, departing Sep 15 at 6:00 AM, returning Sep 20 at 9:30 PM. Total cost: $1,250.75"
+    }
+  ],
+  "edge_cases": {
+    "empty_flights": {
+      "flights": []
+    },
+    "malformed_flight": {
+      "flights": [
+        {
+          "priceUSD": "invalid_price",
+          "durationOutbound": null,
+          "airline": 12345,
+          "departureTime": "invalid_date"
+        }
+      ]
+    },
+    "missing_required_fields": {
+      "flights": [
+        {
+          "id": "incomplete_flight"
+        }
+      ]
+    }
+  }
+}

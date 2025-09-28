@@ -9,9 +9,7 @@ Enhanced node functions with defensive programming patterns:
 - Circuit breaker integration
 """
 
-import json
 import sys
-import os
 from typing import Any, Dict, List
 from langchain_core.runnables import RunnableLambda
 from datetime import datetime, timedelta

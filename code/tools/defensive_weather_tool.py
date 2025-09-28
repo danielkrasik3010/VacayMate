@@ -9,11 +9,11 @@ Enhanced version of the weather forecast tool with defensive programming pattern
 - Comprehensive error handling
 """
 
-import os
+
 import json
 from datetime import datetime, timedelta
 import sys
-from typing import Dict, Any, List
+from typing import Dict, Any
 from langchain.agents import tool
 from pathlib import Path
 

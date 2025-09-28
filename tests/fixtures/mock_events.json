@@ -1,0 +1,161 @@
+{
+  "events": [
+    {
+      "title": "Paris Fashion Week Exhibition",
+      "date": {
+        "start_date": "2025-09-15",
+        "when": "7:00 PM"
+      },
+      "formatted_date": "Sep 15 - 7:00 PM",
+      "venue": "Grand Palais",
+      "address": ["Grand Palais, 3 Avenue du Général Eisenhower, 75008 Paris"],
+      "link": "https://example.com/events/fashion-week",
+      "description": "Exclusive exhibition showcasing the latest trends from Paris Fashion Week with designer collections and runway shows.",
+      "ticket_info": [
+        {
+          "source": "EventBrite",
+          "price": "€45.00",
+          "availability": "Available"
+        }
+      ]
+    },
+    {
+      "title": "Seine River Jazz Festival",
+      "date": {
+        "start_date": "2025-09-16",
+        "when": "8:30 PM"
+      },
+      "formatted_date": "Sep 16 - 8:30 PM",
+      "venue": "Pont Neuf",
+      "address": ["Pont Neuf, 75001 Paris"],
+      "link": "https://example.com/events/jazz-festival",
+      "description": "Evening jazz performances by local and international artists along the scenic Seine River.",
+      "ticket_info": [
+        {
+          "source": "Official Site",
+          "price": "Free",
+          "availability": "Open to public"
+        }
+      ]
+    },
+    {
+      "title": "Louvre Night Tours",
+      "date": {
+        "start_date": "2025-09-17",
+        "when": "6:00 PM"
+      },
+      "formatted_date": "Sep 17 - 6:00 PM",
+      "venue": "Louvre Museum",
+      "address": ["Louvre Museum, Rue de Rivoli, 75001 Paris"],
+      "link": "https://example.com/events/louvre-night",
+      "description": "Special after-hours guided tours of the Louvre Museum with exclusive access to selected galleries.",
+      "ticket_info": [
+        {
+          "source": "Louvre Official",
+          "price": "€25.00",
+          "availability": "Limited spots"
+        }
+      ]
+    },
+    {
+      "title": "Montmartre Art Walk",
+      "date": {
+        "start_date": "2025-09-18",
+        "when": "10:00 AM"
+      },
+      "formatted_date": "Sep 18 - 10:00 AM",
+      "venue": "Montmartre District",
+      "address": ["Place du Tertre, 75018 Paris"],
+      "link": "https://example.com/events/art-walk",
+      "description": "Guided walking tour through the historic Montmartre district, visiting artist studios and galleries.",
+      "ticket_info": [
+        {
+          "source": "TourGuide Paris",
+          "price": "€18.00",
+          "availability": "Available"
+        }
+      ]
+    },
+    {
+      "title": "Champs-Élysées Food Festival",
+      "date": {
+        "start_date": "2025-09-19",
+        "when": "12:00 PM"
+      },
+      "formatted_date": "Sep 19 - 12:00 PM",
+      "venue": "Champs-Élysées",
+      "address": ["Avenue des Champs-Élysées, 75008 Paris"],
+      "link": "https://example.com/events/food-festival",
+      "description": "Street food festival featuring French cuisine, local vendors, and cooking demonstrations.",
+      "ticket_info": [
+        {
+          "source": "Paris Events",
+          "price": "Free entry",
+          "availability": "Open event"
+        }
+      ]
+    },
+    {
+      "title": "Edge Case Event",
+      "date": null,
+      "formatted_date": "",
+      "venue": null,
+      "address": [],
+      "link": "",
+      "description": "",
+      "ticket_info": []
+    }
+  ],
+  "edge_cases": {
+    "empty_events": {
+      "events": []
+    },
+    "malformed_event": {
+      "events": [
+        {
+          "title": 12345,
+          "date": "invalid_date_format",
+          "venue": ["should_be_string"],
+          "ticket_info": "should_be_array"
+        }
+      ]
+    },
+    "missing_required_fields": {
+      "events": [
+        {
+          "id": "incomplete_event"
+        }
+      ]
+    },
+    "null_values": {
+      "events": [
+        {
+          "title": null,
+          "date": null,
+          "venue": null,
+          "address": null,
+          "link": null,
+          "description": null
+        }
+      ]
+    },
+    "very_long_descriptions": {
+      "events": [
+        {
+          "title": "Long Description Event",
+          "description": "This is an extremely long description that goes on and on and on and repeats itself multiple times to test how the system handles very long text fields. This is an extremely long description that goes on and on and on and repeats itself multiple times to test how the system handles very long text fields. This is an extremely long description that goes on and on and on and repeats itself multiple times to test how the system handles very long text fields.",
+          "venue": "Test Venue"
+        }
+      ]
+    },
+    "special_characters": {
+      "events": [
+        {
+          "title": "Event with Special Characters: àáâãäåæçèéêë & <script>alert('test')</script>",
+          "venue": "Café des Artistes & Théâtre",
+          "description": "Testing special characters: €$£¥ñüöä"
+        }
+      ]
+    }
+  }
+}

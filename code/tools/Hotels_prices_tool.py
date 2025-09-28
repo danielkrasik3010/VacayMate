@@ -1,4 +1,3 @@
-import os
 import json
 import sys
 from datetime import date

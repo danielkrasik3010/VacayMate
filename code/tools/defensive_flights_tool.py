@@ -11,7 +11,6 @@ Enhanced version of the flight search tool with defensive programming patterns:
 
 from langchain.agents import tool
 import requests
-import os
 import sys
 from pathlib import Path
 from typing import Dict, Any

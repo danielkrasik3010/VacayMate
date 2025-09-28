@@ -16,7 +16,7 @@ import hashlib
 import logging
 import psutil
 import signal
-from typing import Any, Dict, List, Optional, Callable, Tuple, Union
+from typing import Any, Dict, List, Optional, Callable, Tuple
 from functools import wraps
 from collections import deque
 from pydantic import BaseModel, Field, validator

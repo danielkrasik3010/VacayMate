@@ -1,0 +1,179 @@
+{
+  "hotels": [
+    {
+      "name": "Hotel des Grands Boulevards",
+      "description": "Stylish boutique hotel in the heart of Paris with elegant rooms and modern amenities.",
+      "rating": 4.5,
+      "hotel_class": "4-star",
+      "price": {
+        "per_night": "$125.00",
+        "per_night_value": 125.00,
+        "total": "$625.00",
+        "total_value": 625.00
+      },
+      "address": {
+        "latitude": 48.8738,
+        "longitude": 2.3448,
+        "formatted": "17 Boulevard Poissonnière, 75002 Paris, France",
+        "area": "2nd Arrondissement"
+      },
+      "check_in": "15:00",
+      "check_out": "11:00",
+      "amenities": "Free WiFi, Air conditioning, Restaurant, Bar, 24-hour front desk",
+      "booking_link": "https://example.com/book/hotel001",
+      "summary": "Boutique hotel in central Paris with excellent ratings and modern amenities, perfect for exploring the city."
+    },
+    {
+      "name": "Le Marais Hotel",
+      "description": "Charming hotel in the historic Marais district with traditional French decor.",
+      "rating": 4.2,
+      "hotel_class": "3-star",
+      "price": {
+        "per_night": "$98.50",
+        "per_night_value": 98.50,
+        "total": "$492.50",
+        "total_value": 492.50
+      },
+      "address": {
+        "latitude": 48.8566,
+        "longitude": 2.3522,
+        "formatted": "42 Rue de Rivoli, 75004 Paris, France",
+        "area": "Marais District"
+      },
+      "check_in": "14:00",
+      "check_out": "12:00",
+      "amenities": "Free WiFi, Breakfast included, Historic building, City center location",
+      "booking_link": "https://example.com/book/hotel002",
+      "summary": "Historic hotel in the trendy Marais district offering authentic Parisian charm and excellent value."
+    },
+    {
+      "name": "Luxury Palace Paris",
+      "description": "5-star luxury hotel near the Champs-Élysées with premium service and facilities.",
+      "rating": 4.8,
+      "hotel_class": "5-star",
+      "price": {
+        "per_night": "$285.00",
+        "per_night_value": 285.00,
+        "total": "$1,425.00",
+        "total_value": 1425.00
+      },
+      "address": {
+        "latitude": 48.8698,
+        "longitude": 2.3075,
+        "formatted": "15 Avenue des Champs-Élysées, 75008 Paris, France",
+        "area": "Champs-Élysées"
+      },
+      "check_in": "15:00",
+      "check_out": "12:00", 
+      "amenities": "Spa, Fitness center, Fine dining restaurant, Concierge service, Valet parking",
+      "booking_link": "https://example.com/book/hotel003",
+      "summary": "Ultimate luxury experience in Paris with world-class amenities and prime location near iconic landmarks."
+    },
+    {
+      "name": "Budget Inn Montmartre",
+      "description": "Simple, clean accommodations in the artistic Montmartre neighborhood.",
+      "rating": 3.8,
+      "hotel_class": "2-star",
+      "price": {
+        "per_night": "$65.00",
+        "per_night_value": 65.00,
+        "total": "$325.00",
+        "total_value": 325.00
+      },
+      "address": {
+        "latitude": 48.8848,
+        "longitude": 2.3415,
+        "formatted": "28 Rue des Abbesses, 75018 Paris, France",
+        "area": "Montmartre"
+      },
+      "check_in": "14:30",
+      "check_out": "11:30",
+      "amenities": "Free WiFi, Shared bathroom, Continental breakfast, Near Sacré-Cœur",
+      "booking_link": "https://example.com/book/hotel004",
+      "summary": "Affordable accommodation in artistic Montmartre, perfect for budget-conscious travelers."
+    },
+    {
+      "name": "Edge Case Hotel",
+      "description": null,
+      "rating": null,
+      "hotel_class": null,
+      "price": {
+        "per_night": "$0.00",
+        "per_night_value": 0.0,
+        "total": "$0.00",
+        "total_value": 0.0
+      },
+      "address": {
+        "latitude": null,
+        "longitude": null,
+        "formatted": "",
+        "area": "Central area"
+      },
+      "check_in": null,
+      "check_out": null,
+      "amenities": "",
+      "booking_link": "",
+      "summary": "Hotel with missing data for testing edge cases"
+    }
+  ],
+  "edge_cases": {
+    "empty_hotels": {
+      "hotels": []
+    },
+    "malformed_hotel": {
+      "hotels": [
+        {
+          "name": 12345,
+          "price": "invalid_price_format",
+          "rating": "not_a_number",
+          "address": "string_instead_of_object"
+        }
+      ]
+    },
+    "negative_prices": {
+      "hotels": [
+        {
+          "name": "Negative Price Hotel",
+          "price": {
+            "per_night": "$-50.00",
+            "per_night_value": -50.0,
+            "total": "$-250.00", 
+            "total_value": -250.0
+          }
+        }
+      ]
+    },
+    "very_high_prices": {
+      "hotels": [
+        {
+          "name": "Ultra Luxury Hotel",
+          "price": {
+            "per_night": "$5,000.00",
+            "per_night_value": 5000.0,
+            "total": "$25,000.00",
+            "total_value": 25000.0
+          }
+        }
+      ]
+    },
+    "missing_required_fields": {
+      "hotels": [
+        {
+          "id": "incomplete_hotel"
+        }
+      ]
+    },
+    "string_coordinates": {
+      "hotels": [
+        {
+          "name": "String Coords Hotel",
+          "address": {
+            "latitude": "48.8566",
+            "longitude": "2.3522",
+            "formatted": "Test Address"
+          }
+        }
+      ]
+    }
+  }
+}

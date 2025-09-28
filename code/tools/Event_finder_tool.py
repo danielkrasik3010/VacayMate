@@ -1,5 +1,4 @@
 
-import os
 from datetime import datetime, timedelta, date
 import sys
 from typing import Optional

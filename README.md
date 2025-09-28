@@ -1,64 +1,46 @@
-# 🌍 VacayMate - AI Travel Planner
 
+# VacayMate - Reliable AI Travel Planning System
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
 [![LangChain](https://img.shields.io/badge/LangChain-0.3+-green.svg)](https://langchain.com)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.4+-purple.svg)](https://langgraph.com)
 
-VacayMate is an intelligent AI-powered travel planning system that creates comprehensive vacation itineraries by orchestrating multiple specialized agents. Built with LangGraph and featuring a beautiful Streamlit UI, it provides real-time flight prices, hotel recommendations, weather forecasts, local events, and detailed cost breakdowns.
+VacayMate is a travel planning system designed to take the stress out of organizing your next trip. What started as a simple experiment has grown into a robust, production-ready platform that handles the research, calculations, and details for you. The new version is focused on reliability, resilience, and a smooth user experience—so you can focus on enjoying your vacation, not worrying about logistics.
 
-## ✨ Features
+## What Makes VacayMate Different?
 
-### 🤖 Multi-Agent Architecture
-- **Manager Agent**: Orchestrates the entire planning workflow
-- **Researcher Agent**: Gathers flight, hotel, and destination data
-- **Calculator Agent**: Provides detailed cost analysis and quotations
-- **Planner Agent**: Creates itineraries with weather and events
-- **Summarizer Agent**: Compiles everything into a comprehensive plan
+VacayMate is not just another booking tool. It’s a digital travel companion that coordinates all the moving parts of your trip, checks its own work, and recovers gracefully from errors. The system is built around a set of defensive programming patterns that ensure it keeps running smoothly, even when things go wrong with external APIs or data sources.
 
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Core Agents](#core-agents)
-- [Tools & Integrations](#tools--integrations)
-- [Configuration](#configuration)
-- [Repository Structure](#repository-structure)
-- [Quickstart](#quickstart)
-- [Demo Usage](#demo-usage)
-- [Implementation Notes](#implementation-notes)
-- [Extending the Project](#extending-the-project)
-- [Development Tips](#development-tips)
-- [Contact & License](#contact--license)
-- [Code Statistics](#code-statistics)
+### Key Features
 
-### 🛠️ Core Capabilities
-- ✈️ **Real-time Flight Search** - Live prices from multiple airlines with duration calculations
-- 🏨 **Hotel Recommendations** - Detailed hotel data with real addresses and coordinates
-- 🌍 **Dynamic Destination Research** - Attractions and activities specific to your destination
-- 🌤️ **Weather Forecasting** - 5-day weather outlook for your trip
-- 🎉 **Local Events Discovery** - Find events and activities during your stay
-- 💰 **Comprehensive Cost Analysis** - Detailed breakdown with commission calculations
-- 📄 **Markdown Export** - Download your complete vacation plan
+- Multi-agent architecture for research, planning, cost calculation, and summarization
+- Defensive programming patterns for reliability and error recovery
+- Real-time monitoring and dashboards
+- Streamlit-based user interface and system dashboard
+- Automatic recovery from failures and outages
+- Health metrics and clear error reporting
+- Configuration-driven and easy to customize
 
-### 🎨 Beautiful UI
-- Modern Streamlit interface with gradient designs
-- Responsive tables and cards
-- Interactive tabs for organized information
-- Real-time progress indicators
-- Mobile-friendly design
+## Defensive Patterns: How Reliability is Built In
 
----
+VacayMate’s production system uses six core defensive programming patterns:
 
-## System Architecture
+1. **Resilient Output Parsing and Schema Validation**: Every API response is validated to ensure data consistency and catch malformed responses. Fallback values are used if something is missing.
+2. **Circuit Breakers and Tool-Level Fallbacks**: The system monitors API failures and temporarily disables failing services to prevent cascading errors.
+3. **State Validation and Recovery Safeguards**: State is validated before and after each step, with automatic repair and emergency state creation if needed.
+4. **Iteration Caps and Loop Detection**: Prevents infinite loops and runaway processes with state fingerprinting and iteration limits.
+5. **Exponential Backoff and Retry Logic**: Automatically retries failed API calls with intelligent backoff strategies.
+6. **Resource Usage Limits and Tool Sandboxing**: Monitors memory and execution time, and isolates risky operations.
 
-### Agent Workflow
+## System Overview
 
-VacayMate uses a sophisticated multi-agent architecture where specialized agents work together:
+VacayMate is built around five specialized agents:
 
-1. **Manager Agent** - Orchestrates the entire workflow and validates inputs
-2. **Researcher Agent** - Gathers flight, hotel, and destination information
-3. **Calculator Agent** - Computes total vacation costs with detailed breakdowns
-4. **Planner Agent** - Creates day-by-day itineraries with weather and events
-5. **Summarizer Agent** - Generates polished final vacation plans
+- **Manager**: Orchestrates the process, checks your input, and ensures everything happens in the right order.
+- **Researcher**: Gathers real-time data on flights, hotels, and attractions, handling API hiccups with fallbacks and retries.
+- **Calculator**: Crunches the numbers and ensures costs are clear and accurate.
+- **Planner**: Builds your day-by-day itinerary, taking into account weather, events, and your preferences.
+- **Summarizer**: Pulls everything together into a clean, readable plan.
 
 ### Workflow Diagram
 
@@ -98,81 +80,6 @@ VacayMate uses a sophisticated multi-agent architecture where specialized agents
       │     END     │
       └─────────────┘
 ```
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.8+
-- API Keys for:
-  - OpenAI/Groq (for LLM)
-  - Tavily (for destination research)
-  - SerpAPI (for hotel search)
-  - RapidAPI (for flight prices)
-  - OpenWeatherMap (for weather)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/danielkrasik3010/VacayMate.git
-   cd VacayMate
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Set up environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   OPENAI_API_KEY=your_openai_key
-   GROQ_API_KEY=your_groq_key
-   TAVILY_API_KEY=your_tavily_key
-   SERPAPI_API_KEY=your_serpapi_key
-   RAPIDAPI_KEY=your_rapidapi_key
-   OPENWEATHER_API_KEY=your_openweather_key
-   ```
-
-5. **Run the Streamlit app**
-   ```bash
-   streamlit run UI/app.py
-   ```
-   
-
-## 📁 Project Structure
-
-```
-VacayMate/
-├── code/                          # Core system code
-│   ├── tools/                     # Agent tools
-│   │   ├── destination_info_tool.py
-│   │   ├── Flights_prices_tool.py
-│   │   ├── Hotels_prices_tool.py
-│   │   ├── Weather_Forecast_tool.py
-│   │   └── Event_finder_tool.py
-│   ├── nodes/                     # Agent implementations
-│   │   └── VacayMate_nodes.py
-│   ├── graphs/                    # LangGraph workflow
-│   │   └── VacayMate_graph.py
-│   ├── states/                    # State management
-│   │   └── VacayMate_state.py
-│   └── VacayMate_system.py       # Main system class
-├── UI/                           # Streamlit interface
-│   ├── app.py                    # Main UI application
-│   ├── requirements.txt          # UI dependencies
-│   └── README.md                 # UI documentation
-├── outputs/                      # Generated vacation plans
-├── config/                       # Configuration files
-├── requirements.txt              # Main dependencies
-└── README.md                     # This file
-```
----
 
 ## Core Agents
 
@@ -320,64 +227,7 @@ vacaymate_system:
         role: Data Researcher for vacation planning
         # ... detailed prompts for each agent
 ```
-
-
-
-## 🔧 Configuration
-
-### API Keys Setup
-The system requires several API keys for full functionality:
-
-1. **LLM Provider** (Choose one):
-   - OpenAI: `OPENAI_API_KEY`
-   - Groq: `GROQ_API_KEY`
-
-2. **Data Sources**:
-   - Tavily (destination info): `TAVILY_API_KEY`
-   - SerpAPI (hotels & events): `SERPAPI_API_KEY`
-   - RapidAPI (flights): `FLIGHTS_RAPID_API_KEY`
-   - OpenWeatherMap: `OWM_API_KEY`
-
-### System Configuration
-VacayMate now uses a **configuration-driven architecture**. Edit `config/config.yaml` to customize:
-
-- **Agent Prompts**: All agent instructions and roles are loaded from config
-- **Model Parameters**: Temperature, max_tokens, and top_p settings
-- **Tool Assignments**: Which tools each agent can access
-- **System Limits**: Max retries, timeouts, search queries, hotels, and events
-
-This makes the system highly configurable without code changes. Agent prompts are loaded dynamically from the config file, making it easy to fine-tune behavior for different use cases.
-
-## 🎯 Usage Examples
-
-### Basic Trip Planning
-```python
-from code.VacayMate_system import VacayMate
-
-# Initialize the system
-vacay_mate = VacayMate(llm_model="gpt-4o-mini")
-
-# Plan a trip
-result = vacay_mate.run(
-    user_request="Plan a 5-day trip to Paris",
-    current_location="Barcelona",
-    destination="Paris",
-    start_date="2024-06-15",
-    return_date="2024-06-20"
-)
-```
-
-### Advanced Configuration
-```python
-# Custom configuration
-vacay_mate = VacayMate(
-    llm_model="groq/mixtral-8x7b-32768",
-    max_hotels=10,
-    max_events=15
-)
-```
-
-## 🔄 System Workflow
+## System Workflow
 
 1. **Input Processing**: User provides trip details
 2. **Research Phase**: Gather flights, hotels, and destination info
@@ -386,55 +236,115 @@ vacay_mate = VacayMate(
 5. **Summarization**: Compile final vacation plan
 6. **Export**: Generate downloadable Markdown report
 
-## 🛠️ Recent Improvements
+## Quick Start
 
-### Production-Ready Features ✅
-- **Configuration-Driven Architecture**: All agent prompts loaded from `config.yaml`
-- **Deduplication Logic**: Smart removal of duplicate attractions and events
-- **Environment Variables**: Secure API key management with validation
-- **UI Improvements**: Fixed Streamlit deprecation warnings
-- **Dynamic Attractions**: Real destination attractions with intelligent filtering
-- **Flight Duration**: Correct calculation and display (e.g., "2h 30m")
-- **Hotel Data**: Real addresses, coordinates, and booking information
+**Requirements:**
+- Python 3.8+
+- API keys for OpenAI/Groq, Tavily, SerpAPI, RapidAPI, and OpenWeatherMap
 
-### Enhanced Data Quality 📊
-- **Smart Filtering**: Removes HTML fragments and unwanted text from attractions
-- **Case-Insensitive Matching**: Handles "The Brandenburg Gate" vs "Brandenburg Gate"
-- **Minimum Guarantees**: Ensures at least 5 unique attractions when available
-- **Professional Output**: Clean, formatted vacation plans in Markdown
+**Setup:**
+1. Clone the repository:
+  ```bash
+  git clone https://github.com/danielkrasik3010/VacayMate.git
+  cd VacayMate
+  **move to prod branch**
+  ```
+2. Create a virtual environment:
+  ```bash
+  python -m venv venv
+  # On Windows:
+  venv\Scripts\activate
+  # On Mac/Linux:
+  source venv/bin/activate
+  ```
+3. Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
+4. Set up your environment variables in a `.env` file:
+  ```env
+  OPENAI_API_KEY=your_openai_key
+  GROQ_API_KEY=your_groq_key
+  TAVILY_API_KEY=your_tavily_key
+  SERPAPI_API_KEY=your_serpapi_key
+  FLIGHTS_RAPID_API_KEY=your_rapidapi_key
+  OWM_API_KEY=your_openweather_key
+  ```
+5. Run the production UI (recommended):
+  ```bash
+  streamlit run UI/app_defensive.py
+  ```
+  Or run the dashboard for monitoring:
+  ```bash
+  streamlit run UI/dashboard.py
+  ```
 
-### Code Quality & Statistics 📈
-- **Total Lines of Code**: 3,927 lines across 25 Python files
-- **Multi-Agent Architecture**: 5 specialized agents with distinct responsibilities
-- **Tool Integration**: 6 external APIs seamlessly integrated
-- **Error Handling**: Robust validation and retry mechanisms
+## Project Structure
 
-## 🤝 Contributing
+```
+VacayMate/
+├── code/
+│   ├── tools/                  # Tools for flights, hotels, weather, events, etc.
+│   ├── nodes/                  # Node logic (defensive and standard)
+│   ├── graphs/                 # Workflow graphs
+│   ├── states/                 # State management (defensive and standard)
+│   ├── VacayMate_system.py     # Original system
+│   └── VacayMate_system_production.py  # Production-ready defensive system
+├── UI/                        # Streamlit UIs and dashboard
+├── config/                    # Configuration files
+├── outputs/                   # Generated vacation plans
+├── requirements.txt           # Dependencies
+└── README.md                  # This file
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Using the Production System
 
-## 📝 License
+The new production-ready system is available in `code/VacayMate_system_production.py` and is designed for reliability and monitoring. Here’s a simple example:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```python
+from VacayMate_system_production import ProductionVacayMate
 
-## 🙏 Acknowledgments
+vacay_mate = ProductionVacayMate(
+   llm_model="gpt-4o-mini",
+   enable_monitoring=True
+)
+
+result = vacay_mate.run(
+   user_request="Plan a 7-day romantic trip to Paris",
+   export_formats='markdown'
+)
+```
+
+## Configuration
+
+All system behavior is controlled by `config/config.yaml`. You can adjust agent prompts, model parameters, tool assignments, and system limits without changing the code. API keys are loaded from environment variables for security.
+
+## User Interface and Monitoring
+
+VacayMate comes with a modern Streamlit UI (`UI/app_defensive.py`) and a real-time dashboard (`UI/dashboard.py`). The dashboard provides:
+- System health and uptime
+- Circuit breaker status for all external services
+- Performance metrics and error logs
+- Resource usage and alerts
+
+## Contributing
+
+Contributions are welcome! Please open an issue or pull request if you have ideas, bug reports, or improvements.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+##  Acknowledgments
 
 - Built with [LangChain](https://langchain.com) and [LangGraph](https://langgraph.com)
 - UI powered by [Streamlit](https://streamlit.io)
 - Data sources: Tavily, SerpAPI, RapidAPI, OpenWeatherMap
 - AI models: OpenAI GPT-4, Groq Mixtral
 
-## 📞 Support
+## Support
 
 For questions, issues, or contributions:
 - 🐛 [Report bugs](https://github.com/danielkrasik3010/VacayMate/issues)
 - 💡 [Request features](https://github.com/danielkrasik3010/VacayMate/issues)
 - 📧 Contact: [GitHub Profile](https://github.com/danielkrasik3010)
-
----
-
-**Made with ❤️ by [Daniel Krasik](https://github.com/danielkrasik3010)**
